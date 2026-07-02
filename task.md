@@ -1,0 +1,17 @@
+- [x] Database Schema & Migration (Phase 1)
+- [x] Ingestion Pipeline Upgrade (Phase 1)
+- [x] Retrieval & Reranking Improvements (Phase 1)
+- [x] Streaming & Chat Service Upgrades (Phase 1)
+- [x] Frontend Navigation Tabs (Phase 1)
+- [x] Split-Screen View & PDF Viewer Panel (Phase 1)
+- [x] Clickable Citation Chips & cards in chat messages (Phase 1)
+- [x] Database Schema: is_starred in Flashcards
+- [x] Ingestion & Default Stream Responses toggle
+- [x] Sidebar Transition Wrapping
+- [x] Perplexity-Style AI Thinking States
+- [x] Quizlet-Style Flashcard Panel Upgrades
+- [x] AI Notes Generator
+- [x] Obsidian-Style Knowledge Graph & Mind Maps
+- [x] Beautiful Stats Dashboard
+- [x] Themes (Light, OLED, system, etc)
+- [/] Verification & walkthrough.md

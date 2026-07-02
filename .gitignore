@@ -1,0 +1,17 @@
+node_modules/
+.next/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env.local
+backend/.venv/
+frontend/venv/
+venv/
+backend/storage/
+storage/
+.qodo/
+__pycache__/
+*.pyc

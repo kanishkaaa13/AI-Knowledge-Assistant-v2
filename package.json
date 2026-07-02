@@ -1,0 +1,11 @@
+{
+  "name": "ai-knowledge-assistant",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:lint": "npm --prefix frontend run lint",
+    "frontend:type-check": "npm --prefix frontend run type-check"
+  }
+}
