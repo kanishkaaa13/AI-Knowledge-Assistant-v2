@@ -1,6 +1,6 @@
 <div align="center">
   
-# 🧠 AI Knowledge Assistant
+# 🧠 AI Knowledge Assistant v2
 
 <p align="center">
 
@@ -56,6 +56,15 @@ Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, t
        alt="Document Management"
        src="https://github.com/user-attachments/assets/bde5d782-43d5-4de6-a92e-116deb1dc22c" />
 </p>
+
+---
+
+## 🔄 Architecture Evolution
+
+AI Knowledge Assistant v2 evolves the architecture from a standard vector-based RAG (Retrieval-Augmented Generation) pipeline into a comprehensive knowledge intelligence platform:
+* **OKF (Open Knowledge Format) Concept Extraction:** Extracts structured semantic concepts and core definitions from uploaded documents.
+* **Knowledge Graph Layer:** Builds associative connections and entity relationships on top of standard vector databases.
+* **Agent Orchestration:** Introduces autonomous, goal-oriented agents capable of complex multi-step reasoning, planning, and task execution.
 
 ---
 
