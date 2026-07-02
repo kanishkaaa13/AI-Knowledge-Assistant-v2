@@ -36,6 +36,7 @@ from app.schemas.rag import (
 )
 from app.schemas.setting import SettingCreate, SettingRead, SettingUpdate
 from app.schemas.user import UserCreate, UserRead, UserSettingsSummary, UserUpdate
+from app.schemas.okf import OKFRecordRead, OKFRecordListResponse
 
 __all__ = [
     "AnalyticsOverview",
@@ -76,4 +77,6 @@ __all__ = [
     "UserRead",
     "UserSettingsSummary",
     "UserUpdate",
+    "OKFRecordRead",
+    "OKFRecordListResponse",
 ]
