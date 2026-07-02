@@ -12,6 +12,7 @@ from app.models import (
     Setting,
     UploadedDocument,
     User,
+    OKFRecord,
 )
 
 config = context.config
