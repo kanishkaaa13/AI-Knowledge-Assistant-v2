@@ -21,7 +21,9 @@ import {
   Flashcard,
   FlashcardCreate,
   FlashcardUpdate,
-  FlashcardGenerateRequest
+  FlashcardGenerateRequest,
+  OKFRecordListResponse,
+  OKFDocument
 } from "@/types/api";
 import type { RetrievedChunk } from "@/types/rag";
 
@@ -310,4 +312,20 @@ export async function generateStudyNotes(payload: { query: string; model: string
   const { data } = await apiClient.post<{ notes: string; context: string; chunks: any[] }>("/assistant/notes", payload);
   return data;
 }
+
+export async function listOKFRecords(params?: {
+  type?: string;
+  tag?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  const { data } = await apiClient.get<OKFRecordListResponse>("/okf", { params });
+  return data;
+}
+
+export async function getOKFDocument(recordId: string) {
+  const { data } = await apiClient.get<OKFDocument>(`/okf/${recordId}`);
+  return data;
+}
+
 

@@ -244,3 +244,32 @@ export interface FlashcardGenerateRequest {
   count: number;
   model?: string;
 }
+
+export interface OKFRecord {
+  id: string;
+  source_document_id: string;
+  file_path: string;
+  type: string;
+  title: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OKFRecordListResponse {
+  items: OKFRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface OKFDocument {
+  type: string;
+  title: string;
+  tags: string[];
+  related: string[];
+  source_document_id: string | null;
+  created_at: string;
+  updated_at: string;
+  body: string;
+}
