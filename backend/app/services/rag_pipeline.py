@@ -90,6 +90,40 @@ class RAGIngestionService:
             separators=["\n## ", "\n### ", "\n\n", "\n", ". ", " ", ""],
         )
 
+        # Fetch associated OKF records
+        from sqlalchemy import select
+        from app.models.okf_record import OKFRecord
+        import re
+
+        okf_records = []
+        try:
+            okf_records = self.db.scalars(
+                select(OKFRecord).where(OKFRecord.source_document_id == document.id)
+            ).all()
+        except Exception as e:
+            print(f"[INDEX OKF ERROR] Failed to fetch OKF records: {e}")
+
+        def find_best_okf_match(chunk_txt: str, okf_recs: list[OKFRecord]) -> OKFRecord | None:
+            if not okf_recs:
+                return None
+            chunk_words = set(re.findall(r"\w+", chunk_txt.lower()))
+            if not chunk_words:
+                return okf_recs[0]
+            
+            best_m = None
+            best_s = -1
+            
+            for record in okf_recs:
+                title_words = set(re.findall(r"\w+", record.title.lower()))
+                tags_words = {t.lower() for t in record.tags} if isinstance(record.tags, list) else set()
+                record_words = title_words.union(tags_words)
+                
+                overlap = len(chunk_words.intersection(record_words))
+                if overlap > best_s:
+                    best_s = overlap
+                    best_m = record
+            return best_m
+
         base_metadata = {
             "document_id": str(document.id),
             "document_title": document.title,
@@ -117,6 +151,20 @@ class RAGIngestionService:
                     if not chunk_text.strip():
                         continue
                     vector_id = f"{document.id}:{global_chunk_index}"
+                    
+                    # Match nearest OKFRecord
+                    best_okf = find_best_okf_match(chunk_text, okf_records)
+                    chunk_metadata = {
+                        **base_metadata,
+                        "chunk_index": global_chunk_index,
+                        "chunk_id": vector_id,
+                        "page": str(page.page_number),
+                        "paragraph_index": str(p_idx),
+                    }
+                    if best_okf:
+                        chunk_metadata["okf_type"] = best_okf.type
+                        chunk_metadata["okf_tags"] = ",".join(best_okf.tags) if isinstance(best_okf.tags, list) else str(best_okf.tags)
+
                     chunk_payloads.append(
                         {
                             "document_id": document.id,
@@ -132,13 +180,7 @@ class RAGIngestionService:
                         VectorRecord(
                             id=vector_id,
                             document=chunk_text,
-                            metadata={
-                                **base_metadata,
-                                "chunk_index": global_chunk_index,
-                                "chunk_id": vector_id,
-                                "page": str(page.page_number),
-                                "paragraph_index": str(p_idx),
-                            },
+                            metadata=chunk_metadata,
                         )
                     )
                     global_chunk_index += 1
@@ -210,10 +252,11 @@ class RAGRetrievalService:
         top_k: int | None = None,
         hybrid: bool = True,
         document_ids: list[str] | None = None,
+        filters: dict | None = None,
     ) -> RetrievalResponse:
         normalized_ids = sorted(document_ids or [])
         cache_key = (
-            f"retrieval:{user.id}:{query}:{top_k}:{hybrid}:{','.join(normalized_ids)}"
+            f"retrieval:{user.id}:{query}:{top_k}:{hybrid}:{','.join(normalized_ids)}:{filters}"
         )
         cached = app_cache.get(cache_key)
         if cached:
@@ -232,11 +275,11 @@ class RAGRetrievalService:
         results: list[VectorSearchResult]
         if hybrid:
             results = await self.vector_store.hybrid_similarity_search(
-                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids
+                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids, filters=filters
             )
         else:
             results = await self.vector_store.semantic_similarity_search(
-                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids
+                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids, filters=filters
             )
 
         print(f"[RAG] Results count: {len(results)}")

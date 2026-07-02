@@ -213,6 +213,7 @@ class VectorStoreService:
         query: str,
         top_k: int = 4,
         document_ids: list[str] | None = None,
+        filters: dict | None = None,
     ) -> list[VectorSearchResult]:
         """Semantic similarity search — async, non-blocking."""
 
@@ -230,22 +231,28 @@ class VectorStoreService:
                 logger.debug("Collection for user %s is empty.", user_id)
                 return []
 
-            where_clause: dict = {"user_id": str(user_id)}
+            # Build list of conditions for ChromaDB where filter
+            conditions = [{"user_id": str(user_id)}]
             if document_ids:
                 if len(document_ids) == 1:
-                    where_clause = {
-                        "$and": [
-                            {"user_id": str(user_id)},
-                            {"document_id": document_ids[0]},
-                        ]
-                    }
+                    conditions.append({"document_id": document_ids[0]})
                 else:
-                    where_clause = {
-                        "$and": [
-                            {"user_id": str(user_id)},
-                            {"document_id": {"$in": document_ids}},
-                        ]
-                    }
+                    conditions.append({"document_id": {"$in": document_ids}})
+
+            if filters:
+                for k, v in filters.items():
+                    key = "okf_type" if k in {"type", "okf_type"} else ("okf_tags" if k in {"tags", "okf_tags"} else k)
+                    # Push type filter to database where query directly
+                    if key == "okf_type":
+                        if isinstance(v, list):
+                            conditions.append({key: {"$in": [str(val) for val in v]}})
+                        else:
+                            conditions.append({key: str(v)})
+
+            if len(conditions) == 1:
+                where_clause = conditions[0]
+            else:
+                where_clause = {"$and": conditions}
 
             print(f"[QUERY] Filter used: {where_clause}")
 
@@ -296,6 +303,38 @@ class VectorStoreService:
                         semantic_score=semantic_score,
                     )
                 )
+
+            # Python post-filtering for extra safety and robust tag matching
+            if filters:
+                filtered_results = []
+                for res in formatted:
+                    # check okf_type
+                    if "type" in filters or "okf_type" in filters:
+                        req_type = filters.get("type") or filters.get("okf_type")
+                        res_type = res.metadata.get("okf_type")
+                        if isinstance(req_type, list):
+                            if res_type not in req_type:
+                                continue
+                        elif res_type != req_type:
+                            continue
+                            
+                    # check okf_tags
+                    if "tags" in filters or "okf_tags" in filters:
+                        req_tags = filters.get("tags") or filters.get("okf_tags")
+                        res_tags_str = res.metadata.get("okf_tags", "")
+                        res_tags = {t.strip().lower() for t in res_tags_str.split(",") if t.strip()}
+                        
+                        if isinstance(req_tags, list):
+                            req_tags_set = {t.strip().lower() for t in req_tags if t.strip()}
+                            if not req_tags_set.intersection(res_tags):
+                                continue
+                        else:
+                            if req_tags.strip().lower() not in res_tags:
+                                continue
+                                
+                    filtered_results.append(res)
+                formatted = filtered_results
+
             return formatted
 
         try:
@@ -315,6 +354,7 @@ class VectorStoreService:
         query: str,
         top_k: int = 4,
         document_ids: list[str] | None = None,
+        filters: dict | None = None,
     ) -> list[VectorSearchResult]:
         """Hybrid search combining semantic search and keyword search using Reciprocal Rank Fusion (RRF)."""
         import re
@@ -333,6 +373,40 @@ class VectorStoreService:
         sql_results = []
         if terms:
             try:
+                # Load OKF records mapping to filter chunks
+                okf_records_map = {}
+                try:
+                    with db_manager.session_factory() as session:
+                        from app.models.okf_record import OKFRecord
+                        stmt_okf = select(OKFRecord)
+                        if document_ids:
+                            stmt_okf = stmt_okf.where(OKFRecord.source_document_id.in_([uuid.UUID(d) for d in document_ids if d]))
+                        else:
+                            stmt_okf = stmt_okf.join(UploadedDocument).where(UploadedDocument.user_id == user_id)
+                        records = session.scalars(stmt_okf).all()
+                        for r in records:
+                            okf_records_map.setdefault(r.source_document_id, []).append(r)
+                except Exception as e:
+                    logger.error("Failed to load OKF records for hybrid SQL filter: %s", e)
+
+                def find_best_okf_match(chunk_txt: str, okf_recs: list[OKFRecord]) -> OKFRecord | None:
+                    if not okf_recs:
+                        return None
+                    chunk_words = set(re.findall(r"\w+", chunk_txt.lower()))
+                    if not chunk_words:
+                        return okf_recs[0]
+                    best_m = None
+                    best_s = -1
+                    for rec in okf_recs:
+                        title_words = set(re.findall(r"\w+", rec.title.lower()))
+                        tags_words = {t.lower() for t in rec.tags} if isinstance(rec.tags, list) else set()
+                        rec_words = title_words.union(tags_words)
+                        overlap = len(chunk_words.intersection(rec_words))
+                        if overlap > best_s:
+                            best_s = overlap
+                            best_m = rec
+                    return best_m
+
                 with db_manager.session_factory() as session:
                     conditions = []
                     for term in terms:
@@ -349,10 +423,53 @@ class VectorStoreService:
                     db_chunks = session.scalars(stmt).all()
 
                     for chunk in db_chunks:
+                        # Match nearest OKFRecord
+                        doc_okf_list = okf_records_map.get(chunk.document_id, [])
+                        best_okf = find_best_okf_match(chunk.content, doc_okf_list)
+
+                        # Apply filters to SQL chunk
+                        if filters:
+                            # check okf_type
+                            if "type" in filters or "okf_type" in filters:
+                                if not best_okf:
+                                    continue
+                                req_type = filters.get("type") or filters.get("okf_type")
+                                if isinstance(req_type, list):
+                                    if best_okf.type not in req_type:
+                                        continue
+                                elif best_okf.type != req_type:
+                                    continue
+                                    
+                            # check okf_tags
+                            if "tags" in filters or "okf_tags" in filters:
+                                if not best_okf:
+                                    continue
+                                req_tags = filters.get("tags") or filters.get("okf_tags")
+                                okf_tags_set = {t.lower() for t in best_okf.tags} if isinstance(best_okf.tags, list) else set()
+                                if isinstance(req_tags, list):
+                                    req_tags_set_req = {t.strip().lower() for t in req_tags if t.strip()}
+                                    if not req_tags_set_req.intersection(okf_tags_set):
+                                        continue
+                                else:
+                                    if req_tags.strip().lower() not in okf_tags_set:
+                                        continue
+
                         matches = 0
                         content_lower = chunk.content.lower()
                         for term in terms:
                             matches += content_lower.count(term)
+
+                        chunk_meta = {
+                            "document_id": str(chunk.document_id),
+                            "filename": chunk.document.file_name,
+                            "document_title": chunk.document.title,
+                            "page": chunk.page_number,
+                            "paragraph_index": chunk.paragraph_index,
+                            "chunk_index": chunk.chunk_index
+                        }
+                        if best_okf:
+                            chunk_meta["okf_type"] = best_okf.type
+                            chunk_meta["okf_tags"] = ",".join(best_okf.tags) if isinstance(best_okf.tags, list) else str(best_okf.tags)
 
                         sql_results.append({
                             "chunk_id": str(chunk.id),
@@ -363,14 +480,15 @@ class VectorStoreService:
                             "paragraph_index": chunk.paragraph_index,
                             "content": chunk.content,
                             "chunk_index": chunk.chunk_index,
-                            "score": matches
+                            "score": matches,
+                            "metadata": chunk_meta
                         })
                     sql_results.sort(key=lambda x: x["score"], reverse=True)
             except Exception as e:
                 logger.error("SQL keyword search failed in hybrid search: %s", e)
 
         # Get semantic results
-        semantic_results = await self.similarity_search(user_id, query, top_k=top_k * 3, document_ids=document_ids)
+        semantic_results = await self.similarity_search(user_id, query, top_k=top_k * 3, document_ids=document_ids, filters=filters)
 
         # Apply Reciprocal Rank Fusion (RRF)
         rrf_scores = {}
@@ -399,14 +517,7 @@ class VectorStoreService:
                 chunk_data_map[key] = {
                     "id": res["chunk_id"],
                     "document": res["content"],
-                    "metadata": {
-                        "document_id": doc_id,
-                        "filename": res["filename"],
-                        "document_title": res["title"],
-                        "page": res["page"],
-                        "paragraph_index": res["paragraph_index"],
-                        "chunk_index": chunk_idx
-                    },
+                    "metadata": res["metadata"],
                     "semantic_score": 0.0,
                     "keyword_score": float(res["score"])
                 }
@@ -450,9 +561,10 @@ class VectorStoreService:
         query: str,
         top_k: int = 4,
         document_ids: list[str] | None = None,
+        filters: dict | None = None,
     ) -> list[VectorSearchResult]:
         """Pure semantic search alias."""
-        return await self.similarity_search(user_id, query, top_k, document_ids)
+        return await self.similarity_search(user_id, query, top_k, document_ids, filters)
 
 
 # ---------------------------------------------------------------------------
