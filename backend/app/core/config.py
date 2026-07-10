@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL_NAME: str = "gpt-4.1-mini"
     # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
     LLM_MODEL_NAME: str = "llama3.2:3b"
     LLM_API_KEY: str | None = None
@@ -87,6 +89,13 @@ class Settings(BaseSettings):
         if self.APP_ENV.lower() == "production" and self.JWT_SECRET_KEY == "change-me-in-production":
             raise ValueError("JWT_SECRET_KEY must be replaced in production.")
 
+        return self
+
+    @model_validator(mode="after")
+    def validate_openai_config(self) -> "Settings":
+        if self.LLM_PROVIDER.lower() == "openai":
+            if not self.OPENAI_API_KEY or not self.OPENAI_API_KEY.strip():
+                raise ValueError("OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai'.")
         return self
 
 

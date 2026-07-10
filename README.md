@@ -91,7 +91,7 @@ Our stack is carefully curated for scale, speed, and modern developer experience
 | :--- | :--- |
 | **Frontend** | Next.js, React, Tailwind CSS, TypeScript, Recharts, Framer Motion |
 | **Backend** | FastAPI, Python, SQLAlchemy, PostgreSQL / SQLite, JWT, Server-Sent Events (SSE) |
-| **AI / Machine Learning** | LangChain, Ollama, Vector Embeddings, RAG Pipeline, Semantic Search |
+| **AI / Machine Learning** | LangChain, OpenAI (gpt-4.1-mini or current model - primary LLM provider), Ollama (local dev / offline fallback), Vector Embeddings, RAG Pipeline, Semantic Search |
 | **Deployment** | Vercel (Frontend), Render (Backend), Docker |
 
 ---
@@ -196,7 +196,14 @@ pip install -r requirements.txt
 
 # Create your .env file
 cp .env.example .env
+```
 
+Before starting the server, configure the environment variables in your `.env` file:
+* **`LLM_PROVIDER`**: LLM provider (`openai` | `ollama`).
+* **`OPENAI_API_KEY`**: Your OpenAI API key (required if `LLM_PROVIDER` is `openai`).
+* **`OPENAI_MODEL_NAME`**: The OpenAI model name to use (e.g., `gpt-4.1-mini` or current model).
+
+```bash
 # Start the server
 uvicorn app.main:app --reload --port 8000
 ```
@@ -220,7 +227,7 @@ Your frontend will now be running on `http://localhost:3000` and the backend on 
 ## 🔮 Future Improvements
 
 We are constantly evolving to stay at the cutting edge of AI SaaS features:
-* [ ] **Multi-model AI support:** Toggle between Claude, GPT-4, and local open-source models.
+* [x] **Multi-model AI support:** Toggle between OpenAI (gpt-4.1-mini or current model) and local open-source models (via Ollama).
 * [ ] **Voice Assistant:** Native speech-to-text and text-to-speech interaction.
 * [ ] **Advanced OCR:** Extract text from scanned PDFs and images seamlessly.
 * [ ] **Team Collaboration:** Shared workspaces and document repositories.
