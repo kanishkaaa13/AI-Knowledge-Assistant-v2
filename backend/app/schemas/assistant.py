@@ -55,7 +55,7 @@ class AnalyticsOverview(BaseModel):
 
 class AssistantSummaryRequest(BaseModel):
     query: str = Field(min_length=1)
-    model: str = Field(default_factory=lambda: settings.OLLAMA_DEFAULT_MODEL)
+    model: str = Field(default_factory=lambda: settings.DEFAULT_CHAT_MODEL)
     document_ids: list[str] = Field(default_factory=list)
 
 
@@ -97,7 +97,7 @@ class SemanticDocumentSearchResponse(BaseModel):
 
 class StudyNotesRequest(BaseModel):
     query: str = Field(min_length=1)
-    model: str = Field(default_factory=lambda: settings.OLLAMA_DEFAULT_MODEL)
+    model: str = Field(default_factory=lambda: settings.DEFAULT_CHAT_MODEL)
     document_ids: list[str] = Field(default_factory=list)
 
 

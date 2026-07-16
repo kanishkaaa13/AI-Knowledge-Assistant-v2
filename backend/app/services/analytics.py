@@ -96,7 +96,7 @@ class AnalyticsService:
             user_messages=user_messages,
             average_messages_per_chat=average_messages_per_chat,
             local_only_inference=settings.ENFORCE_LOCAL_ONLY_AI,
-            primary_model=settings.OLLAMA_DEFAULT_MODEL,
+            primary_model=settings.DEFAULT_CHAT_MODEL,
         )
 
         return AnalyticsOverview(

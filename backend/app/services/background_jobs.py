@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.core.config import settings
 from app.db.session import db_manager
 from app.models.uploaded_document import UploadedDocument
 from app.services.ollama_llm import OllamaLLMService
@@ -47,6 +48,6 @@ def __safe_generate(prompt: str) -> str:
     import asyncio
 
     async def _run():
-        return await OllamaLLMService().generate(prompt=prompt, model=settings.OLLAMA_DEFAULT_MODEL)
+        return await OllamaLLMService().generate(prompt=prompt, model=settings.DEFAULT_CHAT_MODEL)
 
     return asyncio.run(_run())
