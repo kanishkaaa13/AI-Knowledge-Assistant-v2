@@ -283,7 +283,7 @@ export function NotesShell() {
                           }}
                           className="accent-indigo-500"
                         />
-                        <span className="line-clamp-1">{doc.title || doc.filename}</span>
+                        <span className="line-clamp-1">{doc.title || doc.file_name}</span>
                       </label>
                     );
                   })

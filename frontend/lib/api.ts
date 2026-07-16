@@ -207,7 +207,7 @@ export async function queryAssistant(payload: {
 }
 
 export async function summarizeAssistantKnowledge(payload: {
-  query?: string | null;
+  query: string;
   model: string;
   document_ids?: string[];
 }) {
@@ -216,7 +216,7 @@ export async function summarizeAssistantKnowledge(payload: {
 }
 
 export async function generateAssistantQuiz(payload: {
-  query?: string | null;
+  query: string;
   model: string;
   document_ids?: string[];
 }) {
@@ -235,7 +235,7 @@ export async function getSuggestedPrompts(payload: {
 
 export async function semanticDocumentSearch(payload: {
   query: string;
-  model: "llama3" | "mistral";
+  model: string;
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<{ results: SemanticDocumentSearchItem[] }>(

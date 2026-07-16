@@ -355,7 +355,7 @@ export function useChat() {
     mutationFn: async (tool: "summary" | "quiz" | "search") => {
       const effectiveDocumentIds = selectedDocumentIds.length > 0 ? selectedDocumentIds : allDocs.map(d => d.id);
       const basePayload = {
-        query: latestReferenceText,
+        query: latestReferenceText ?? "",
         model: settings.model,
         document_ids: effectiveDocumentIds
       };

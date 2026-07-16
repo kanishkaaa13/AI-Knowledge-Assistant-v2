@@ -29,6 +29,11 @@ const DocumentManager = dynamic(
   { ssr: false }
 );
 
+const PDFViewerPanel = dynamic(
+  () => import("@/components/documents/pdf-viewer-panel").then((mod) => mod.PDFViewerPanel),
+  { ssr: false }
+);
+
 interface ChatShellProps {
   activeConversationId?: string;
   activeConversationTitle?: string;
