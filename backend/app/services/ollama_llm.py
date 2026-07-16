@@ -34,16 +34,62 @@ class OllamaLLMService:
     Unified LLM service.
 
     Routes to the provider configured by ``LLM_PROVIDER`` in settings:
-      - ``openai`` (default) — uses the async OpenAI SDK
-      - ``groq``  — uses Groq's OpenAI-compatible REST API via httpx
-      - ``ollama`` — uses a local Ollama instance (opt-in only)
+      - ``openai`` — uses the async OpenAI SDK
+      - ``groq``   — uses Groq's OpenAI-compatible REST API via httpx
+      - ``ollama`` (default) — uses local Ollama with dynamic fallback resolution
 
-    Ollama is **never** used as a silent fallback.  If the configured
-    provider fails, the error propagates immediately.
+    Ollama is the default provider. If the configured provider fails,
+    the error propagates immediately.
     """
 
     def __init__(self) -> None:
         self.provider = settings.LLM_PROVIDER.lower()
+
+    async def _resolve_model(self, requested_model: str, base_url: str) -> str:
+        """
+        Query Ollama's /api/tags endpoint to check if requested_model is installed.
+        Falls back to llama3.2:3b or first available model if it is not available.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(f"{base_url}/api/tags")
+                if resp.status_code == 200:
+                    models = resp.json().get("models", [])
+                    installed_names = [m.get("name") for m in models if m.get("name")]
+                    
+                    # 1. Check exact match
+                    if requested_model in installed_names:
+                        return requested_model
+                    
+                    # 2. Check for tag-less match (e.g. "qwen2.5:3b-instruct" vs "qwen2.5:3b-instruct:latest")
+                    for name in installed_names:
+                        if name.startswith(requested_model + ":") or requested_model.startswith(name + ":"):
+                            return name
+                            
+                    # 3. If requested qwen2.5, try variations or fallback to llama3.2:3b
+                    if "qwen2.5" in requested_model.lower():
+                        for name in installed_names:
+                            if "qwen2.5" in name.lower() and "3b" in name.lower():
+                                return name
+                        for name in installed_names:
+                            if "llama3.2" in name.lower() or "llama3" in name.lower():
+                                return name
+
+                    # 4. Check if standard fallback model is installed
+                    if "llama3.2:3b" in installed_names:
+                        return "llama3.2:3b"
+                        
+                    # 5. Fallback to first available model so the system doesn't crash
+                    if installed_names:
+                        logger.warning(
+                            "Requested model %s is not installed. Falling back to first available: %s",
+                            requested_model, installed_names[0]
+                        )
+                        return installed_names[0]
+        except Exception as e:
+            logger.warning("Failed to query Ollama /api/tags for model resolution: %s", e)
+            
+        return requested_model
 
     # ------------------------------------------------------------------
     # Non-streaming generation
@@ -55,7 +101,7 @@ class OllamaLLMService:
         if self.provider == "groq":
             return await self._groq_generate(prompt)
         if self.provider == "ollama":
-            return await self._ollama_generate(prompt)
+            return await self._ollama_generate(prompt, model)
         raise RuntimeError(f"Unsupported LLM_PROVIDER: {self.provider!r}")
 
     # ------------------------------------------------------------------
@@ -72,7 +118,8 @@ class OllamaLLMService:
             async for token in self._groq_stream(prompt):
                 yield token
         elif self.provider == "ollama":
-            async for token in self._ollama_stream(prompt):
+            model_name = model or settings.DEFAULT_CHAT_MODEL
+            async for token in self._ollama_stream(prompt, model_name):
                 yield token
         else:
             raise RuntimeError(f"Unsupported LLM_PROVIDER: {self.provider!r}")
@@ -181,36 +228,52 @@ class OllamaLLMService:
                             continue
 
     # ==================================================================
-    # Ollama  (opt-in only via LLM_PROVIDER=ollama)
+    # Ollama
     # ==================================================================
 
-    async def _ollama_generate(self, prompt: str) -> str:
+    async def _ollama_generate(self, prompt: str, model: str) -> str:
         import os
 
-        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-        model = os.environ.get("OLLAMA_MODEL", settings.OLLAMA_DEFAULT_MODEL)
+        base_url = os.environ.get("OLLAMA_BASE_URL", settings.OLLAMA_BASE_URL).rstrip("/")
+        resolved_model = await self._resolve_model(model, base_url)
+        logger.info("Ollama generate -> model=%s (requested: %s)", resolved_model, model)
+        
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(600.0, connect=10.0)
         ) as client:
+            payload = {
+                "model": resolved_model,
+                "prompt": prompt,
+                "stream": False,
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
+            }
             resp = await client.post(
                 f"{base_url}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
+                json=payload,
             )
             resp.raise_for_status()
             return resp.json()["response"]
 
-    async def _ollama_stream(self, prompt: str) -> AsyncIterator[str]:
+    async def _ollama_stream(self, prompt: str, model: str) -> AsyncIterator[str]:
         import os
 
-        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-        model = os.environ.get("OLLAMA_MODEL", settings.OLLAMA_DEFAULT_MODEL)
+        base_url = os.environ.get("OLLAMA_BASE_URL", settings.OLLAMA_BASE_URL).rstrip("/")
+        resolved_model = await self._resolve_model(model, base_url)
+        logger.info("Ollama stream -> model=%s (requested: %s)", resolved_model, model)
+        
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(600.0, connect=10.0)
         ) as client:
+            payload = {
+                "model": resolved_model,
+                "prompt": prompt,
+                "stream": True,
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
+            }
             async with client.stream(
                 "POST",
                 f"{base_url}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": True},
+                json=payload,
             ) as response:
                 if response.status_code != 200:
                     body = await response.aread()

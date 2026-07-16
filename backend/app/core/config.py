@@ -44,18 +44,19 @@ class Settings(BaseSettings):
     RAG_CHUNK_SIZE: int = 500
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
-    LLM_PROVIDER: str = "openai"
-    DEFAULT_CHAT_MODEL: str = "gpt-4o-mini"
+    LLM_PROVIDER: str = "ollama"
+    DEFAULT_CHAT_MODEL: str = "qwen2.5:3b-instruct"
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"
+    USE_OPENAI: bool = False
     # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
     LLM_MODEL_NAME: str = "llama3.2:3b"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_DEFAULT_MODEL: str = "llama3.2:3b"
+    OLLAMA_DEFAULT_MODEL: str = "qwen2.5:3b-instruct"
     OLLAMA_KEEP_ALIVE: str = "5m"
     ENFORCE_LOCAL_ONLY_AI: bool = False
     BACKEND_CORS_ORIGINS: list[str] = [
@@ -94,11 +95,15 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_openai_config(self) -> "Settings":
+        if self.USE_OPENAI:
+            self.LLM_PROVIDER = "openai"
+            self.DEFAULT_CHAT_MODEL = self.OPENAI_MODEL_NAME
+
         provider = self.LLM_PROVIDER.lower()
         if provider == "openai":
             if not self.OPENAI_API_KEY or not self.OPENAI_API_KEY.strip():
                 raise ValueError(
-                    "OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai'. "
+                    "OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai' or USE_OPENAI is True. "
                     "Get a key at https://platform.openai.com/api-keys and add it to backend/.env"
                 )
         elif provider == "groq":
