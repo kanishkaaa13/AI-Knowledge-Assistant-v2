@@ -14,4 +14,4 @@
 - [x] Obsidian-Style Knowledge Graph & Mind Maps
 - [x] Beautiful Stats Dashboard
 - [x] Themes (Light, OLED, system, etc)
-- [/] Verification & walkthrough.md
+- [x] Verification & walkthrough.md

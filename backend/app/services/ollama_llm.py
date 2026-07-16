@@ -17,6 +17,27 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
 async def generate_response(prompt: str) -> str:
+    provider = settings.LLM_PROVIDER.lower()
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("LLM generation called using provider: %s", provider)
+
+    if provider == "openai":
+        from openai import AsyncOpenAI
+        print(f"[LLM] Sending prompt to OpenAI (model: {settings.OPENAI_MODEL_NAME})")
+        try:
+            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            response = await client.chat.completions.create(
+                model=settings.OPENAI_MODEL_NAME,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.exception("OpenAI generation failed: %s", str(e))
+            return "Generation temporarily unavailable, please retry"
+
+    # Default/fallback to Ollama
     print(f"[LLM] Sending prompt to {OLLAMA_BASE_URL}/api/generate")
     print(f"[LLM] Model: {OLLAMA_MODEL}")
     print(f"[LLM] Prompt preview: {prompt[:100]}")
@@ -71,10 +92,34 @@ class OllamaLLMService:
         return await generate_response(prompt)
 
     async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
+        provider = settings.LLM_PROVIDER.lower()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("LLM streaming generation called using provider: %s", provider)
+
         messages = [
             {"role": "system", "content": "You are a helpful AI assistant."},
             {"role": "user", "content": prompt}
         ]
+
+        if provider == "openai":
+            from openai import AsyncOpenAI
+            try:
+                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                response = await client.chat.completions.create(
+                    model=settings.OPENAI_MODEL_NAME,
+                    messages=messages,
+                    stream=True,
+                    temperature=0.0,
+                )
+                async for chunk in response:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        yield content
+            except Exception as e:
+                logger.exception("OpenAI streaming generation failed: %s", str(e))
+                yield "Generation temporarily unavailable, please retry"
+            return
 
         if settings.LLM_PROVIDER == "groq":
             if not settings.GROQ_API_KEY or settings.GROQ_API_KEY == "PASTE_YOUR_GROQ_KEY_HERE":

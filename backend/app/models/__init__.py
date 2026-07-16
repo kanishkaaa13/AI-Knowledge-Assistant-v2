@@ -6,6 +6,7 @@ from app.models.note import Note
 from app.models.setting import Setting
 from app.models.uploaded_document import UploadedDocument
 from app.models.user import User
+from app.models.okf_record import OKFRecord
 
 __all__ = [
     "Conversation",
@@ -16,4 +17,5 @@ __all__ = [
     "Setting",
     "UploadedDocument",
     "User",
+    "OKFRecord",
 ]

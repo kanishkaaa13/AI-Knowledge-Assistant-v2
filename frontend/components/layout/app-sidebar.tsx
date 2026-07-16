@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquareText } from "lucide-react";
+import { LayoutDashboard, MessageSquareText, BookOpen } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { href: "/analytics", label: "Analytics", icon: LayoutDashboard },
-  { href: "/dashboard", label: "Chat Workspace", icon: MessageSquareText }
+  { href: "/dashboard", label: "Chat Workspace", icon: MessageSquareText },
+  { href: "/knowledge", label: "Knowledge Base", icon: BookOpen }
 ];
 
 export function AppSidebar() {

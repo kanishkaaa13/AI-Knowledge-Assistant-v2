@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.core.rate_limit import apply_rate_limit
+from app.core.rate_limit import apply_rate_limit, rate_limiter
 from app.core.sanitize import ensure_present, sanitize_text
 from app.db.session import get_db
 from app.models.user import User
@@ -41,6 +41,31 @@ router = APIRouter()
 
 def _sanitized_document_ids(document_ids: list[str]) -> list[str]:
     return [item for item in document_ids if item]
+
+
+def check_chat_rate_limit(user_id: str, limit: int = 20, window_seconds: int = 300) -> None:
+    import time
+    from collections import deque
+    from fastapi import HTTPException
+    
+    key = f"chat-generation:{user_id}"
+    now = time.time()
+    cutoff = now - window_seconds
+
+    with rate_limiter._lock:
+        bucket = rate_limiter._buckets.setdefault(key, deque())
+        while bucket and bucket[0] <= cutoff:
+            bucket.popleft()
+
+        if len(bucket) >= limit:
+            retry_after = int(max(1.0, (bucket[0] + window_seconds) - now))
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please slow down and try again shortly.",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        bucket.append(now)
 
 
 async def _ensure_ollama_running() -> None:
@@ -116,7 +141,7 @@ async def query_assistant(
     db: Session = Depends(get_db),
 ) -> AssistantQueryResponse:
     await _ensure_ollama_running()
-    apply_rate_limit(request, scope="assistant-query", limit=30, user_id=str(current_user.id))
+    check_chat_rate_limit(str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     memory = ChatMemoryService(db)
     conversation = memory.get_or_create_conversation(
@@ -156,7 +181,7 @@ async def stream_assistant_chat(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     await _ensure_ollama_running()
-    apply_rate_limit(request, scope="assistant-stream", limit=30, user_id=str(current_user.id))
+    check_chat_rate_limit(str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
 
     memory = ChatMemoryService(db)

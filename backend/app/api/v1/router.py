@@ -10,3 +10,6 @@ api_router.include_router(conversations.router, prefix="/conversations", tags=["
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
 api_router.include_router(flashcards.router, prefix="/flashcards", tags=["flashcards"])
+from app.api.okf import router as okf_router
+api_router.include_router(okf_router, prefix="/okf", tags=["okf"])
+

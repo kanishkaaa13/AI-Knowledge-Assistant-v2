@@ -15,3 +15,4 @@ storage/
 .qodo/
 __pycache__/
 *.pyc
+backend/okf_bundles/

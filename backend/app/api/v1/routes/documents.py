@@ -123,6 +123,60 @@ async def upload_document(
                 detail="Document record not found after processing.",
             )
 
+        # OKF extraction pipeline
+        try:
+            import os
+            import re
+            from pathlib import Path
+            import logging
+            from app.services.okf_extractor import extract_okf_concepts
+            from app.okf.parser import serialize_okf
+            from app.models.okf_record import OKFRecord
+
+            def slugify(text: str) -> str:
+                text = text.lower().strip()
+                text = re.sub(r"[^\w\s-]", "", text)
+                text = re.sub(r"[-\s]+", "-", text)
+                return text.strip("-")
+
+            # Resolve folders
+            backend_dir = Path(__file__).resolve().parents[4]
+            okf_bundles_dir = backend_dir / "okf_bundles" / str(document.id)
+            okf_bundles_dir.mkdir(parents=True, exist_ok=True)
+
+            # Perform extraction
+            okf_docs = await extract_okf_concepts(
+                document_text=document.extracted_text or "",
+                source_document_id=str(document.id)
+            )
+
+            for okf_doc in okf_docs:
+                slugified = slugify(okf_doc.title) or "concept"
+                file_name = f"{slugified}.md"
+                file_path = okf_bundles_dir / file_name
+
+                # Write markdown + YAML to disk
+                serialized = serialize_okf(okf_doc)
+                file_path.write_text(serialized, encoding="utf-8")
+
+                # Store OKFRecord in DB
+                relative_path = f"okf_bundles/{document.id}/{file_name}"
+                okf_record = OKFRecord(
+                    source_document_id=document.id,
+                    file_path=relative_path,
+                    type=okf_doc.type,
+                    title=okf_doc.title,
+                    tags=okf_doc.tags
+                )
+                db.add(okf_record)
+            
+            db.commit()
+            print(f"[OKF EXTRACTION] Successfully processed {len(okf_docs)} concepts.")
+        except Exception as e:
+            # Let upload continue normally if OKF extraction fails
+            logging.getLogger(__name__).exception("OKF extraction failed during upload flow.")
+            print(f"[OKF EXTRACTION ERROR] {e}")
+
         try:
             RAGIngestionService(db).index_document(document)
         except Exception as e:
