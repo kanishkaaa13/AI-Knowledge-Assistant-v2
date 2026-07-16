@@ -1,205 +1,232 @@
 from __future__ import annotations
 
 import json
-import os
+import logging
 from collections.abc import AsyncIterator
-from urllib.parse import urlparse
 
 import httpx
-from fastapi import HTTPException, status
+from openai import AsyncOpenAI
 
 from app.core.config import settings
 
-from dotenv import load_dotenv
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+# ---------------------------------------------------------------------------
+# Shared async OpenAI client (reused across calls — avoids per-request overhead)
+# ---------------------------------------------------------------------------
+_openai_client: AsyncOpenAI | None = None
 
-async def generate_response(prompt: str) -> str:
-    provider = settings.LLM_PROVIDER.lower()
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info("LLM generation called using provider: %s", provider)
 
-    if provider == "openai":
-        from openai import AsyncOpenAI
-        print(f"[LLM] Sending prompt to OpenAI (model: {settings.OPENAI_MODEL_NAME})")
-        try:
-            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            response = await client.chat.completions.create(
-                model=settings.OPENAI_MODEL_NAME,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,
+def _get_openai_client() -> AsyncOpenAI:
+    global _openai_client
+    if _openai_client is None:
+        if not settings.OPENAI_API_KEY:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not configured. "
+                "Set it in backend/.env and restart the server."
             )
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.exception("OpenAI generation failed: %s", str(e))
-            return "Generation temporarily unavailable, please retry"
-
-    # Default/fallback to Ollama
-    print(f"[LLM] Sending prompt to {OLLAMA_BASE_URL}/api/generate")
-    print(f"[LLM] Model: {OLLAMA_MODEL}")
-    print(f"[LLM] Prompt preview: {prompt[:100]}")
-
-    print(f"[LLM] Using model: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
-            response = await client.post(
-                f"{OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "stream": False
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            print(f"[LLM] Success. Response length: {len(data.get('response', ''))}")
-            return data["response"]
-
-    except httpx.ConnectError as e:
-        print(f"[LLM ERROR] Cannot connect to Ollama: {e}")
-        raise Exception("Cannot connect to Ollama at " + OLLAMA_BASE_URL)
-    except httpx.TimeoutException as e:
-        print(f"[LLM ERROR] Ollama timed out: {e}")
-        raise Exception("Ollama request timed out after 300s")
-    except Exception as e:
-        print(f"[LLM ERROR] Unexpected error: {e}")
-        raise
-
-DEFAULT_MODEL = getattr(settings, 'OLLAMA_DEFAULT_MODEL', 'llama3.2:3b')
-SUPPORTED_OLLAMA_MODELS = [DEFAULT_MODEL, "deepseek-r1:1.5b", "deepseek-r1:14b", "llama3", "mistral", "llama3.2:3b"]
+        _openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return _openai_client
 
 
 class OllamaLLMService:
-    def __init__(self) -> None:
-        self.base_url = settings.OLLAMA_BASE_URL.rstrip("/")
-        self.keep_alive = settings.OLLAMA_KEEP_ALIVE
-        parsed = urlparse(self.base_url)
-        if settings.ENFORCE_LOCAL_ONLY_AI and parsed.hostname not in {"localhost", "127.0.0.1"}:
-            raise RuntimeError("OLLAMA_BASE_URL must stay local for privacy-first inference.")
+    """
+    Unified LLM service.
 
-    def _validate_model(self, model: str | None) -> str:
-        if not model:
-            return DEFAULT_MODEL
-        normalized = model.strip().lower()
-        if normalized not in SUPPORTED_OLLAMA_MODELS:
-            return DEFAULT_MODEL
-        return normalized
+    Routes to the provider configured by ``LLM_PROVIDER`` in settings:
+      - ``openai`` (default) — uses the async OpenAI SDK
+      - ``groq``  — uses Groq's OpenAI-compatible REST API via httpx
+      - ``ollama`` — uses a local Ollama instance (opt-in only)
+
+    Ollama is **never** used as a silent fallback.  If the configured
+    provider fails, the error propagates immediately.
+    """
+
+    def __init__(self) -> None:
+        self.provider = settings.LLM_PROVIDER.lower()
+
+    # ------------------------------------------------------------------
+    # Non-streaming generation
+    # ------------------------------------------------------------------
 
     async def generate(self, *, prompt: str, model: str) -> str:
-        return await generate_response(prompt)
+        if self.provider == "openai":
+            return await self._openai_generate(prompt)
+        if self.provider == "groq":
+            return await self._groq_generate(prompt)
+        if self.provider == "ollama":
+            return await self._ollama_generate(prompt)
+        raise RuntimeError(f"Unsupported LLM_PROVIDER: {self.provider!r}")
 
-    async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
-        provider = settings.LLM_PROVIDER.lower()
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info("LLM streaming generation called using provider: %s", provider)
+    # ------------------------------------------------------------------
+    # Streaming generation
+    # ------------------------------------------------------------------
 
+    async def stream_generate(
+        self, *, prompt: str, model: str | None = None
+    ) -> AsyncIterator[str]:
+        if self.provider == "openai":
+            async for token in self._openai_stream(prompt):
+                yield token
+        elif self.provider == "groq":
+            async for token in self._groq_stream(prompt):
+                yield token
+        elif self.provider == "ollama":
+            async for token in self._ollama_stream(prompt):
+                yield token
+        else:
+            raise RuntimeError(f"Unsupported LLM_PROVIDER: {self.provider!r}")
+
+    # ==================================================================
+    # OpenAI
+    # ==================================================================
+
+    async def _openai_generate(self, prompt: str) -> str:
+        client = _get_openai_client()
+        logger.info("OpenAI generate -> model=%s", settings.OPENAI_MODEL_NAME)
+        response = await client.chat.completions.create(
+            model=settings.OPENAI_MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+        )
+        return response.choices[0].message.content or ""
+
+    async def _openai_stream(self, prompt: str) -> AsyncIterator[str]:
+        client = _get_openai_client()
+        logger.info("OpenAI stream -> model=%s", settings.OPENAI_MODEL_NAME)
         messages = [
             {"role": "system", "content": "You are a helpful AI assistant."},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ]
+        response = await client.chat.completions.create(
+            model=settings.OPENAI_MODEL_NAME,
+            messages=messages,
+            stream=True,
+            temperature=0.0,
+        )
+        async for chunk in response:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
-        if provider == "openai":
-            from openai import AsyncOpenAI
-            try:
-                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-                response = await client.chat.completions.create(
-                    model=settings.OPENAI_MODEL_NAME,
-                    messages=messages,
-                    stream=True,
-                    temperature=0.0,
-                )
-                async for chunk in response:
-                    content = chunk.choices[0].delta.content
-                    if content:
-                        yield content
-            except Exception as e:
-                logger.exception("OpenAI streaming generation failed: %s", str(e))
-                yield "Generation temporarily unavailable, please retry"
-            return
+    # ==================================================================
+    # Groq  (OpenAI-compatible REST API)
+    # ==================================================================
 
-        if settings.LLM_PROVIDER == "groq":
-            if not settings.GROQ_API_KEY or settings.GROQ_API_KEY == "PASTE_YOUR_GROQ_KEY_HERE":
-                raise RuntimeError(
-                    "Groq API key is not set. Go to https://console.groq.com/keys, "
-                    "create a free key, and paste it as GROQ_API_KEY in backend/.env"
-                )
-            headers = {
-                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": settings.GROQ_MODEL,
-                "messages": messages,
-                "stream": True,
-                "max_tokens": 1024
-            }
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                async with client.stream(
-                    "POST",
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers=headers,
-                    json=payload
-                ) as response:
-                    if response.status_code == 401:
-                        raise RuntimeError("Invalid Groq API key. Check your GROQ_API_KEY in backend/.env")
-                    if response.status_code != 200:
-                        body = await response.aread()
-                        raise RuntimeError(f"Groq API error {response.status_code}: {body.decode()}")
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            data = line[6:]
-                            if data == "[DONE]": break
-                            try:
-                                chunk = json.loads(data)
-                                token = chunk["choices"][0]["delta"].get("content", "")
-                                if token:
-                                    yield token
-                            except Exception:
-                                continue
-            return
-
-        import os
-        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-        selected_model = os.environ.get("OLLAMA_MODEL", "llama3")
-        url = f"{base_url}/api/generate"
-        payload = {
-            "model": selected_model,
-            "prompt": prompt,
-            "stream": True  # Real token-by-token streaming
+    async def _groq_generate(self, prompt: str) -> str:
+        if not settings.GROQ_API_KEY:
+            raise RuntimeError("GROQ_API_KEY is not configured.")
+        headers = {
+            "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+            "Content-Type": "application/json",
         }
+        payload = {
+            "model": settings.GROQ_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "max_tokens": 2048,
+        }
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"Groq API error {resp.status_code}: {resp.text}")
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
 
-        print(f"[OLLAMA] STREAM POST {url} model={selected_model}")
-
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
-                async with client.stream("POST", url, json=payload) as response:
-                    if response.status_code != 200:
-                        body = await response.aread()
-                        raise RuntimeError(f"Ollama returned {response.status_code}: {body.decode()}")
-
-                    async for line in response.aiter_lines():
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            chunk = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
-
-                        token = chunk.get("response", "")
-                        if token:
-                            yield token
-
-                        # Ollama signals completion with done=True
-                        if chunk.get("done", False):
-                            print("[OLLAMA] Stream complete")
+    async def _groq_stream(self, prompt: str) -> AsyncIterator[str]:
+        if not settings.GROQ_API_KEY:
+            raise RuntimeError("GROQ_API_KEY is not configured.")
+        headers = {
+            "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": settings.GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": True,
+            "max_tokens": 1024,
+        }
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as response:
+                if response.status_code == 401:
+                    raise RuntimeError("Invalid Groq API key.")
+                if response.status_code != 200:
+                    body = await response.aread()
+                    raise RuntimeError(
+                        f"Groq API error {response.status_code}: {body.decode()}"
+                    )
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
                             break
+                        try:
+                            chunk = json.loads(data_str)
+                            token = chunk["choices"][0]["delta"].get("content", "")
+                            if token:
+                                yield token
+                        except Exception:
+                            continue
 
-        except httpx.ConnectError:
-            raise RuntimeError("Cannot connect to Ollama. Make sure it is running: ollama serve")
-        except httpx.TimeoutException:
-            raise RuntimeError("Ollama request timed out. The AI model may be loading, try again.")
+    # ==================================================================
+    # Ollama  (opt-in only via LLM_PROVIDER=ollama)
+    # ==================================================================
+
+    async def _ollama_generate(self, prompt: str) -> str:
+        import os
+
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        model = os.environ.get("OLLAMA_MODEL", settings.OLLAMA_DEFAULT_MODEL)
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(600.0, connect=10.0)
+        ) as client:
+            resp = await client.post(
+                f"{base_url}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+            )
+            resp.raise_for_status()
+            return resp.json()["response"]
+
+    async def _ollama_stream(self, prompt: str) -> AsyncIterator[str]:
+        import os
+
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        model = os.environ.get("OLLAMA_MODEL", settings.OLLAMA_DEFAULT_MODEL)
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(600.0, connect=10.0)
+        ) as client:
+            async with client.stream(
+                "POST",
+                f"{base_url}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": True},
+            ) as response:
+                if response.status_code != 200:
+                    body = await response.aread()
+                    raise RuntimeError(
+                        f"Ollama returned {response.status_code}: {body.decode()}"
+                    )
+                async for line in response.aiter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    token = chunk.get("response", "")
+                    if token:
+                        yield token
+                    if chunk.get("done", False):
+                        break

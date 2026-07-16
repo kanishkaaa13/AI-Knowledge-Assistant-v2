@@ -68,19 +68,7 @@ def check_chat_rate_limit(user_id: str, limit: int = 20, window_seconds: int = 3
         bucket.append(now)
 
 
-async def _ensure_ollama_running() -> None:
-    import httpx
-    from app.core.config import settings
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            res = await client.get(settings.OLLAMA_BASE_URL)
-            res.raise_for_status()
-    except Exception as exc:
-        print(f"[CHAT ERROR] {exc}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Cannot connect to Ollama: {exc}"
-        )
+
 
 
 @router.get("/summary", response_model=DashboardSummary)
@@ -140,7 +128,6 @@ async def query_assistant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AssistantQueryResponse:
-    await _ensure_ollama_running()
     check_chat_rate_limit(str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     memory = ChatMemoryService(db)
@@ -159,7 +146,7 @@ async def query_assistant(
     result = await AssistantChatService(get_vector_store_service()).answer(
         user=current_user,
         query=payload.query,
-        model=payload.model or settings.OLLAMA_DEFAULT_MODEL,
+        model=payload.model or settings.DEFAULT_CHAT_MODEL,
         top_k=payload.top_k or 4,
         document_ids=_sanitized_document_ids(payload.document_ids),
     )
@@ -180,7 +167,6 @@ async def stream_assistant_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
-    await _ensure_ollama_running()
     check_chat_rate_limit(str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
 
@@ -208,7 +194,7 @@ async def stream_assistant_chat(
             assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
                 user_id=user_id,
                 query=payload.query,
-                model=payload.model or settings.OLLAMA_DEFAULT_MODEL,
+                model=payload.model or settings.DEFAULT_CHAT_MODEL,
                 top_k=payload.top_k or 4,
                 document_ids=_sanitized_document_ids(payload.document_ids),
             )

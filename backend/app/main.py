@@ -73,24 +73,6 @@ def create_application() -> FastAPI:
     import httpx
     from contextlib import asynccontextmanager
 
-    async def keep_model_warm():
-        while True:
-            try:
-                async with httpx.AsyncClient(timeout=600) as client:
-                    await client.post(
-                        "http://localhost:11434/api/generate",
-                        json={
-                            "model": settings.OLLAMA_DEFAULT_MODEL,
-                            "prompt": "hi",
-                            "stream": False,
-                            "keep_alive": "10m"
-                        }
-                    )
-                print("[WARMUP] Model kept warm")
-            except Exception as e:
-                print(f"[WARMUP] Ollama not ready yet: {e}")
-            await asyncio.sleep(60)
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         import time
@@ -111,13 +93,11 @@ def create_application() -> FastAPI:
         except Exception as exc:
             print(f"[STARTUP] Warning: could not pre-warm embedding model: {exc}")
 
-        # Start Ollama keep-alive task
-        warmup_task = asyncio.create_task(keep_model_warm())
+        print(f"[STARTUP] LLM provider: {settings.LLM_PROVIDER} | model: {settings.DEFAULT_CHAT_MODEL}")
         
         yield  # App runs here
         
         print("[SHUTDOWN] Cleaning up...")
-        warmup_task.cancel()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,

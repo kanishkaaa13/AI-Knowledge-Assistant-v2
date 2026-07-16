@@ -44,11 +44,12 @@ class Settings(BaseSettings):
     RAG_CHUNK_SIZE: int = 500
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
-    LLM_PROVIDER: str = "groq"
+    LLM_PROVIDER: str = "openai"
+    DEFAULT_CHAT_MODEL: str = "gpt-4o-mini"
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL_NAME: str = "gpt-4.1-mini"
+    OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
     LLM_MODEL_NAME: str = "llama3.2:3b"
     LLM_API_KEY: str | None = None
@@ -93,9 +94,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_openai_config(self) -> "Settings":
-        if self.LLM_PROVIDER.lower() == "openai":
+        provider = self.LLM_PROVIDER.lower()
+        if provider == "openai":
             if not self.OPENAI_API_KEY or not self.OPENAI_API_KEY.strip():
-                raise ValueError("OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai'.")
+                raise ValueError(
+                    "OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai'. "
+                    "Get a key at https://platform.openai.com/api-keys and add it to backend/.env"
+                )
+        elif provider == "groq":
+            if not self.GROQ_API_KEY or self.GROQ_API_KEY.strip() in ("", "PASTE_YOUR_GROQ_KEY_HERE"):
+                raise ValueError(
+                    "GROQ_API_KEY must be set when LLM_PROVIDER is 'groq'. "
+                    "Get a key at https://console.groq.com/keys and add it to backend/.env"
+                )
         return self
 
 

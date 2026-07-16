@@ -87,11 +87,8 @@ class AssistantChatService:
         except HTTPException as exc:
             raise exc
         except Exception:
-            logger.exception("Ollama generation failed.")
-            answer = (
-                "The AI model is not running. Please run: "
-                f"ollama pull {settings.OLLAMA_DEFAULT_MODEL} && ollama serve"
-            )
+            logger.exception("LLM generation failed.")
+            answer = "The AI service encountered an error. Please check your API key configuration and try again."
 
         return {
             "query": query,
@@ -215,7 +212,7 @@ class AssistantChatService:
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError):
-            msg = "Connection to Ollama lost. Make sure Ollama is running: ollama serve"
+            msg = "LLM connection lost. Check your API key and network configuration."
             print(f"[STREAM ERROR] {msg}")
             yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
             return
