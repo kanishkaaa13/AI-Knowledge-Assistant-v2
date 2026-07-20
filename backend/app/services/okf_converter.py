@@ -132,6 +132,17 @@ class OKFConverterService:
             cleaned_json = extract_json_block(raw_response)
             metadata = json.loads(cleaned_json)
             
+            # If LLM returned a JSON list instead of an object directly
+            if isinstance(metadata, list):
+                found_dict = False
+                for item in metadata:
+                    if isinstance(item, dict):
+                        metadata = item
+                        found_dict = True
+                        break
+                if not found_dict:
+                    raise ValueError("JSON response is a list but contains no dictionaries.")
+            
             # Basic validation
             title = metadata.get("title", section_title).strip()
             description = metadata.get("description", "").strip()

@@ -181,6 +181,10 @@ def create_application() -> FastAPI:
             }
         )
 
+    # EXPERIMENTAL — parallel OKF pipeline, not the default RAG path.
+    from app.api.okf_routes import router as okf_router
+    app.include_router(okf_router, prefix=settings.API_V1_PREFIX)
+
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
     return app
 
