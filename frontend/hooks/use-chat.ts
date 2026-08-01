@@ -542,17 +542,17 @@ export function useChat() {
             document_ids: effectiveDocumentIds
           } satisfies StreamPayload,
           {
-            onThinking(step, message, docs) {
+            onThinking(step, thinkingText, docs) {
               updateConversationCache(conversationId!, (current) => {
                 if (!current) return current as any;
                 return {
                   ...current,
-                  messages: (current.messages ?? []).map((message) =>
-                    message.id !== optimisticAssistantId
-                      ? message
+                  messages: (current.messages ?? []).map((msg) =>
+                    msg.id !== optimisticAssistantId
+                      ? msg
                       : {
-                          ...message,
-                          thinkingState: { step, message, docs }
+                          ...msg,
+                          thinkingState: { step, message: thinkingText, docs }
                         }
                   )
                 };

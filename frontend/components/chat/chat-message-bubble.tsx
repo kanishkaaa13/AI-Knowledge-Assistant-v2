@@ -97,7 +97,7 @@ export function ChatMessageBubble({
                   </div>
                   <div className="flex items-center gap-2 text-indigo-400">
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-                    <span>📄 {message.thinkingState.message}</span>
+                    <span>📄 {typeof message.thinkingState.message === "string" ? message.thinkingState.message : (typeof message.thinkingState.message === "object" ? JSON.stringify(message.thinkingState.message) : String(message.thinkingState.message))}</span>
                   </div>
                 </div>
               )}
