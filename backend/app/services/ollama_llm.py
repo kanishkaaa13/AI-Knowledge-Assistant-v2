@@ -95,13 +95,13 @@ class OllamaLLMService:
     # Non-streaming generation
     # ------------------------------------------------------------------
 
-    async def generate(self, *, prompt: str, model: str) -> str:
+    async def generate(self, *, prompt: str, model: str, temperature: float | None = None) -> str:
         if self.provider == "openai":
-            return await self._openai_generate(prompt)
+            return await self._openai_generate(prompt, temperature)
         if self.provider == "groq":
-            return await self._groq_generate(prompt)
+            return await self._groq_generate(prompt, temperature)
         if self.provider == "ollama":
-            return await self._ollama_generate(prompt, model)
+            return await self._ollama_generate(prompt, model, temperature)
         raise RuntimeError(f"Unsupported LLM_PROVIDER: {self.provider!r}")
 
     # ------------------------------------------------------------------
@@ -109,17 +109,17 @@ class OllamaLLMService:
     # ------------------------------------------------------------------
 
     async def stream_generate(
-        self, *, prompt: str, model: str | None = None
+        self, *, prompt: str, model: str | None = None, temperature: float | None = None
     ) -> AsyncIterator[str]:
         if self.provider == "openai":
-            async for token in self._openai_stream(prompt):
+            async for token in self._openai_stream(prompt, temperature):
                 yield token
         elif self.provider == "groq":
-            async for token in self._groq_stream(prompt):
+            async for token in self._groq_stream(prompt, temperature):
                 yield token
         elif self.provider == "ollama":
             model_name = model or settings.DEFAULT_CHAT_MODEL
-            async for token in self._ollama_stream(prompt, model_name):
+            async for token in self._ollama_stream(prompt, model_name, temperature):
                 yield token
         else:
             raise RuntimeError(f"Unsupported LLM_PROVIDER: {self.provider!r}")
@@ -128,19 +128,19 @@ class OllamaLLMService:
     # OpenAI
     # ==================================================================
 
-    async def _openai_generate(self, prompt: str) -> str:
+    async def _openai_generate(self, prompt: str, temperature: float | None = None) -> str:
         client = _get_openai_client()
-        logger.info("OpenAI generate -> model=%s", settings.OPENAI_MODEL_NAME)
+        logger.info("OpenAI generate -> model=%s, temperature=%s", settings.OPENAI_MODEL_NAME, temperature)
         response = await client.chat.completions.create(
             model=settings.OPENAI_MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
+            temperature=temperature if temperature is not None else 0.0,
         )
         return response.choices[0].message.content or ""
 
-    async def _openai_stream(self, prompt: str) -> AsyncIterator[str]:
+    async def _openai_stream(self, prompt: str, temperature: float | None = None) -> AsyncIterator[str]:
         client = _get_openai_client()
-        logger.info("OpenAI stream -> model=%s", settings.OPENAI_MODEL_NAME)
+        logger.info("OpenAI stream -> model=%s, temperature=%s", settings.OPENAI_MODEL_NAME, temperature)
         messages = [
             {"role": "system", "content": "You are a helpful AI assistant."},
             {"role": "user", "content": prompt},
@@ -149,7 +149,7 @@ class OllamaLLMService:
             model=settings.OPENAI_MODEL_NAME,
             messages=messages,
             stream=True,
-            temperature=0.0,
+            temperature=temperature if temperature is not None else 0.0,
         )
         async for chunk in response:
             content = chunk.choices[0].delta.content
@@ -160,7 +160,7 @@ class OllamaLLMService:
     # Groq  (OpenAI-compatible REST API)
     # ==================================================================
 
-    async def _groq_generate(self, prompt: str) -> str:
+    async def _groq_generate(self, prompt: str, temperature: float | None = None) -> str:
         if not settings.GROQ_API_KEY:
             raise RuntimeError("GROQ_API_KEY is not configured.")
         headers = {
@@ -172,6 +172,7 @@ class OllamaLLMService:
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "max_tokens": 2048,
+            "temperature": temperature if temperature is not None else 0.0,
         }
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
@@ -184,7 +185,7 @@ class OllamaLLMService:
             data = resp.json()
             return data["choices"][0]["message"]["content"]
 
-    async def _groq_stream(self, prompt: str) -> AsyncIterator[str]:
+    async def _groq_stream(self, prompt: str, temperature: float | None = None) -> AsyncIterator[str]:
         if not settings.GROQ_API_KEY:
             raise RuntimeError("GROQ_API_KEY is not configured.")
         headers = {
@@ -199,6 +200,7 @@ class OllamaLLMService:
             ],
             "stream": True,
             "max_tokens": 1024,
+            "temperature": temperature if temperature is not None else 0.0,
         }
         async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream(
@@ -231,22 +233,25 @@ class OllamaLLMService:
     # Ollama
     # ==================================================================
 
-    async def _ollama_generate(self, prompt: str, model: str) -> str:
+    async def _ollama_generate(self, prompt: str, model: str, temperature: float | None = None) -> str:
         import os
 
         base_url = os.environ.get("OLLAMA_BASE_URL", settings.OLLAMA_BASE_URL).rstrip("/")
         resolved_model = await self._resolve_model(model, base_url)
-        logger.info("Ollama generate -> model=%s (requested: %s)", resolved_model, model)
+        logger.info("Ollama generate -> model=%s (requested: %s), temperature=%s", resolved_model, model, temperature)
+        
+        payload = {
+            "model": resolved_model,
+            "prompt": prompt,
+            "stream": False,
+            "keep_alive": settings.OLLAMA_KEEP_ALIVE,
+        }
+        if temperature is not None:
+            payload["options"] = {"temperature": temperature}
         
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(600.0, connect=10.0)
         ) as client:
-            payload = {
-                "model": resolved_model,
-                "prompt": prompt,
-                "stream": False,
-                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
-            }
             resp = await client.post(
                 f"{base_url}/api/generate",
                 json=payload,
@@ -254,22 +259,25 @@ class OllamaLLMService:
             resp.raise_for_status()
             return resp.json()["response"]
 
-    async def _ollama_stream(self, prompt: str, model: str) -> AsyncIterator[str]:
+    async def _ollama_stream(self, prompt: str, model: str, temperature: float | None = None) -> AsyncIterator[str]:
         import os
 
         base_url = os.environ.get("OLLAMA_BASE_URL", settings.OLLAMA_BASE_URL).rstrip("/")
         resolved_model = await self._resolve_model(model, base_url)
-        logger.info("Ollama stream -> model=%s (requested: %s)", resolved_model, model)
+        logger.info("Ollama stream -> model=%s (requested: %s), temperature=%s", resolved_model, model, temperature)
+        
+        payload = {
+            "model": resolved_model,
+            "prompt": prompt,
+            "stream": True,
+            "keep_alive": settings.OLLAMA_KEEP_ALIVE,
+        }
+        if temperature is not None:
+            payload["options"] = {"temperature": temperature}
         
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(600.0, connect=10.0)
         ) as client:
-            payload = {
-                "model": resolved_model,
-                "prompt": prompt,
-                "stream": True,
-                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
-            }
             async with client.stream(
                 "POST",
                 f"{base_url}/api/generate",

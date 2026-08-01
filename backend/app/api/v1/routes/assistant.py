@@ -160,6 +160,110 @@ async def query_assistant(
     return AssistantQueryResponse(**result)
 
 
+@router.post("/query/stream")
+async def stream_query_assistant(
+    payload: AssistantQueryRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    check_chat_rate_limit(str(current_user.id))
+    payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+
+    memory = ChatMemoryService(db)
+    conversation = memory.get_or_create_conversation(
+        user=current_user,
+        conversation_id=payload.conversation_id,
+        initial_user_message=payload.query,
+    )
+    if payload.conversation_id is not None:
+        memory.append_message(
+            conversation=conversation,
+            role="user",
+            content=payload.query,
+        )
+
+    # Snapshot IDs before entering the generator (avoid closed-session access)
+    conversation_id = conversation.id
+    conversation_title = conversation.title
+    user_id = current_user.id
+
+    async def event_stream():
+        full_answer = ""
+        try:
+            assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
+                user_id=user_id,
+                query=payload.query,
+                model=payload.model or settings.DEFAULT_CHAT_MODEL,
+                top_k=payload.top_k or 4,
+                document_ids=_sanitized_document_ids(payload.document_ids),
+            )
+
+            async for chunk in assistant_stream:
+                if not chunk.startswith("data: "):
+                    yield chunk
+                    continue
+
+                payload_json = chunk[6:].strip()
+                try:
+                    data = json.loads(payload_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping malformed SSE chunk: %r", chunk)
+                    continue
+
+                if data.get("type") == "token":
+                    full_answer += data.get("content", "")
+                elif data.get("type") == "done":
+                    # Persist the completed response in a fresh DB session
+                    from app.db.session import db_manager
+                    from app.models.conversation import Conversation
+
+                    with db_manager.session_factory() as local_db:
+                        local_memory = ChatMemoryService(local_db)
+                        local_conversation = local_db.get(Conversation, conversation_id)
+                        if local_conversation:
+                            final_answer = full_answer.strip() or "I was unable to generate a response. Please try again."
+                            
+                            citations_list = data.get("citations", [])
+                            citations_json = json.dumps(citations_list) if citations_list else None
+
+                            updated = local_memory.sync_conversation_after_response(
+                                conversation=local_conversation,
+                                user_message=payload.query,
+                                assistant_message=final_answer,
+                                citations=citations_json,
+                            )
+                            data["conversation_id"] = str(updated.id)
+                            data["conversation_title"] = updated.title
+                        else:
+                            data["conversation_id"] = str(conversation_id)
+                            data["conversation_title"] = conversation_title
+                elif data.get("type") == "context":
+                    data["conversation_id"] = str(conversation_id)
+                    data["conversation_title"] = conversation_title
+
+                yield f"data: {json.dumps(data)}\n\n"
+
+        except Exception as e:
+            import traceback
+            full_tb = traceback.format_exc()
+            print(f"[STREAM CRASH]\n{full_tb}")
+            error_payload = json.dumps({
+                "type": "error",
+                "message": str(e) or "Stream failed. Check backend logs."
+            })
+            yield f"data: {error_payload}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/chat/stream")
 async def stream_assistant_chat(
     payload: AssistantQueryRequest,

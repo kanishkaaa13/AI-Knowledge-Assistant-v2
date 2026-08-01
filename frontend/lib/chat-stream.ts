@@ -24,7 +24,7 @@ export async function streamAssistantChat(
   signal?: AbortSignal
 ): Promise<void> {
   const response = await fetch(
-    `${env.NEXT_PUBLIC_API_BASE_URL}/assistant/chat/stream`,
+    `${env.NEXT_PUBLIC_API_BASE_URL}/assistant/query/stream`,
     {
       method: "POST",
       credentials: "include", // send httpOnly access_token cookie

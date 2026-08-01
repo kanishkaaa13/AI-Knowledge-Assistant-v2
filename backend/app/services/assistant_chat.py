@@ -81,7 +81,7 @@ class AssistantChatService:
                 prompt = build_rag_prompt(query=query, context=context)
 
         try:
-            answer = await self.ollama_service.generate(prompt=prompt, model=model)
+            answer = await self.ollama_service.generate(prompt=prompt, model=model, temperature=0.2)
             if not answer.strip():
                 answer = "I was unable to generate a response. Please try again."
         except HTTPException as exc:
@@ -130,7 +130,7 @@ class AssistantChatService:
 
             full_answer = ""
             try:
-                async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+                async for token in self.ollama_service.stream_generate(prompt=prompt, model=model, temperature=0.2):
                     full_answer += token
                     yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             except Exception as e:
@@ -208,7 +208,7 @@ class AssistantChatService:
 
         full_answer = ""
         try:
-            async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+            async for token in self.ollama_service.stream_generate(prompt=prompt, model=model, temperature=0.2):
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError):
