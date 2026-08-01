@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import agent, assistant, auth, conversations, documents, health, notes, flashcards
+from app.api.v1.routes import agent, agent_chat, assistant, auth, conversations, documents, health, notes, flashcards
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -11,6 +11,7 @@ api_router.include_router(documents.router, prefix="/documents", tags=["document
 api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
 api_router.include_router(flashcards.router, prefix="/flashcards", tags=["flashcards"])
 api_router.include_router(agent.router, prefix="/agent", tags=["agent"])
+api_router.include_router(agent_chat.router, prefix="/agent", tags=["agent"])
 from app.api.okf import router as okf_router
 api_router.include_router(okf_router, prefix="/okf", tags=["okf"])
 
