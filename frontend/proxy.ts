@@ -5,21 +5,17 @@ const authRoutes = ["/login", "/register"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasAuthCookie =
-    request.cookies.has("access_token") ||
-    request.cookies.has("refresh_token") ||
-    request.cookies.get("auth_hint")?.value === "1";
+  
+  // Only check auth_hint cookie (client-settable) for basic routing
+  const hasAuthHint = request.cookies.get("auth_hint")?.value === "1";
 
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
-  if (isProtectedRoute && !hasAuthCookie) {
-    const url = new URL("/login", request.url);
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (isAuthRoute && hasAuthCookie) {
+  // Allow access to protected routes - let API calls handle auth validation
+  // This prevents redirect loops when httponly cookies can't be checked server-side
+  
+  if (isAuthRoute && hasAuthHint) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

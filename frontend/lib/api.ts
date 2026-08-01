@@ -235,13 +235,23 @@ export async function getSuggestedPrompts(payload: {
 
 export async function semanticDocumentSearch(payload: {
   query: string;
-  model: string;
+  model: "llama3" | "mistral";
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<{ results: SemanticDocumentSearchItem[] }>(
     "/assistant/document-search",
     payload
   );
+  return data;
+}
+
+export async function agentChat(payload: {
+  query: string;
+}) {
+  const { data } = await apiClient.post<{
+    answer: string;
+    tool_used: string;
+  }>("/agent/chat", payload);
   return data;
 }
 

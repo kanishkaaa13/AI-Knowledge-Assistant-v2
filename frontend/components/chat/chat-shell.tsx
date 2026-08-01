@@ -46,6 +46,7 @@ interface ChatShellProps {
   isSettingsOpen: boolean;
   isSidebarOpen: boolean;
   isWorkingTools: boolean;
+  isAgentMode: boolean;
   messages: ChatMessage[];
   quiz: AssistantQuizItem[];
   searchResults: SemanticDocumentSearchItem[];
@@ -66,6 +67,7 @@ interface ChatShellProps {
   onSelectedDocumentIdsChange: (ids: string[]) => void;
   onSendMessage: () => Promise<void>;
   onSettingsChange: (settings: AssistantSettings) => void;
+  onAgentModeChange: (enabled: boolean) => void;
   onSettingsOpenChange: (open: boolean) => void;
   onSidebarOpenChange: (open: boolean) => void;
   onUseSuggestedPrompt: (prompt: string) => void;
@@ -83,6 +85,7 @@ export function ChatShell({
   isSettingsOpen,
   isSidebarOpen,
   isWorkingTools,
+  isAgentMode,
   messages,
   quiz,
   searchResults,
@@ -103,6 +106,7 @@ export function ChatShell({
   onSelectedDocumentIdsChange,
   onSendMessage,
   onSettingsChange,
+  onAgentModeChange,
   onSettingsOpenChange,
   onSidebarOpenChange,
   onUseSuggestedPrompt
@@ -221,6 +225,21 @@ export function ChatShell({
                 }`}
               >
                 My Notes
+              </button>
+            </div>
+
+            {/* Agent Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Agent Mode</span>
+              <button
+                onClick={() => onAgentModeChange(!isAgentMode)}
+                className={`w-10 h-5 rounded-full transition-colors ${
+                  isAgentMode ? "bg-indigo-600" : "bg-muted"
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                  isAgentMode ? "translate-x-5" : "translate-x-0.5"
+                }`} />
               </button>
             </div>
 
