@@ -13,13 +13,14 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 interface PDFViewerPanelProps {
+  documentId: string;
   filename: string;
   initialPage?: number;
   highlightText?: string;
   onClose?: () => void;
 }
 
-export function PDFViewerPanel({ filename, initialPage = 1, highlightText, onClose }: PDFViewerPanelProps) {
+export function PDFViewerPanel({ documentId, filename, initialPage = 1, highlightText, onClose }: PDFViewerPanelProps) {
   const [numPages, setNumPages] = React.useState<number | null>(null);
   const [pageNumber, setPageNumber] = React.useState(initialPage);
   const [scale, setScale] = React.useState(1.0);
@@ -32,10 +33,9 @@ export function PDFViewerPanel({ filename, initialPage = 1, highlightText, onClo
   }, [filename]);
 
   const fileUrl = React.useMemo(() => {
-    // Construct the backend uploads mount URL
-    const baseUrl = env.NEXT_PUBLIC_API_BASE_URL.replace("/api/v1", "");
-    return `${baseUrl}/uploads/${cleanFilename}`;
-  }, [cleanFilename]);
+    // Use the new document file endpoint
+    return `${env.NEXT_PUBLIC_API_BASE_URL}/documents/${documentId}/file`;
+  }, [documentId]);
 
   React.useEffect(() => {
     if (initialPage) {

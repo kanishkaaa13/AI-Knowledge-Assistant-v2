@@ -16,7 +16,7 @@ export function ChatMessageBubble({
 }: {
   message: ChatMessage;
   userName: string;
-  onCitationClick?: (filename: string, page: number, content: string) => void;
+  onCitationClick?: (filename: string, page: number, content: string, documentId?: string) => void;
 }) {
   const isUser = message.role === "user";
   const isError = !isUser && typeof message.content === 'string' && (message.content.startsWith('{"detail":') || message.content.startsWith("⚠️ Error:"));
@@ -26,7 +26,7 @@ export function ChatMessageBubble({
     toast.success("Message copied");
   }
 
-  const handleCitationClick = (filename: string, page: number, paragraph: number) => {
+  const handleCitationClick = (filename: string, page: number, paragraph: number, documentId?: string) => {
     if (onCitationClick) {
       const match = (message.citations || []).find((c: any) => {
         const cFile = c.filename?.split("/").pop()?.toLowerCase();
@@ -34,7 +34,7 @@ export function ChatMessageBubble({
         return cFile === targetFile && c.page === page && c.paragraph_index === paragraph;
       });
       const highlightContent = match ? match.content : "";
-      onCitationClick(filename, page, highlightContent);
+      onCitationClick(filename, page, highlightContent, documentId);
     }
   };
 
@@ -136,7 +136,7 @@ export function ChatMessageBubble({
                 key={cit.chunk_id || idx}
                 onClick={() => {
                   if (onCitationClick) {
-                    onCitationClick(cit.filename, cit.page, cit.content);
+                    onCitationClick(cit.filename, cit.page, cit.content, cit.document_id);
                   }
                 }}
                 className="flex items-center gap-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-color)] p-2 hover:bg-[var(--border-color)] transition text-left max-w-[180px] shrink-0"

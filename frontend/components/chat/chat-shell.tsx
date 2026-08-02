@@ -122,6 +122,7 @@ export function ChatShell({
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"chat" | "notes" | "flashcards">("chat");
   const [activePdf, setActivePdf] = React.useState<{
+    documentId: string;
     filename: string;
     page: number;
     highlightText: string;
@@ -265,8 +266,8 @@ export function ChatShell({
                   messages={messages}
                   userName={user?.name ?? "You"}
                   onUsePrompt={onUseSuggestedPrompt}
-                  onCitationClick={(filename, page, content) => {
-                    setActivePdf({ filename, page, highlightText: content });
+                  onCitationClick={(filename, page, content, documentId) => {
+                    setActivePdf({ documentId: documentId || "", filename, page, highlightText: content });
                   }}
                   allDocsCount={allDocsCount}
                   chatCount={chatCount}
@@ -284,6 +285,7 @@ export function ChatShell({
               {activePdf && (
                 <div className="w-1/2 h-full p-4 overflow-hidden bg-[var(--bg-panel)] flex flex-col shrink-0">
                   <PDFViewerPanel
+                    documentId={activePdf.documentId}
                     filename={activePdf.filename}
                     initialPage={activePdf.page}
                     highlightText={activePdf.highlightText}

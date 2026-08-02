@@ -19,7 +19,7 @@ export function ChatMarkdown({
   content: string;
   invert?: boolean;
   isStreaming?: boolean;
-  onCitationClick?: (filename: string, page: number, paragraph: number) => void;
+  onCitationClick?: (filename: string, page: number, paragraph: number, documentId?: string) => void;
 }) {
   async function copyCodeBlock(code: string) {
     await navigator.clipboard.writeText(code);
@@ -115,7 +115,7 @@ export function ChatMarkdown({
                     onClick={(e) => {
                       e.preventDefault();
                       if (onCitationClick) {
-                        onCitationClick(filename, page, paragraph);
+                        onCitationClick(filename, page, paragraph, undefined);
                       }
                     }}
                     className="mx-0.5 inline-flex items-center gap-1 rounded bg-indigo-500/10 px-1.5 py-0.5 text-xs font-semibold text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all cursor-pointer border border-indigo-500/20"

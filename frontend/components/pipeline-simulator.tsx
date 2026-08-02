@@ -96,7 +96,7 @@ export function PipelineSimulator() {
     
     const payload: StreamPayload = {
       query: state.query,
-      model: "llama3.2:3b",
+      model: "qwen2.5:3b-instruct",
       top_k: state.topK,
       hybrid: true,
     };
@@ -146,12 +146,21 @@ export function PipelineSimulator() {
         },
         onError: (message) => {
           console.error("Stream error:", message);
-          setState((prev) => ({ ...prev, isRunning: false }));
+          setState((prev) => ({ 
+            ...prev, 
+            isRunning: false,
+            answer: `Error: ${message}`
+          }));
         },
       });
     } catch (error) {
       console.error("Query failed:", error);
-      setState((prev) => ({ ...prev, isRunning: false }));
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setState((prev) => ({ 
+        ...prev, 
+        isRunning: false,
+        answer: `Network Error: ${errorMessage}. Please check if backend is running and you are authenticated.`
+      }));
     }
   };
 
@@ -248,7 +257,7 @@ export function PipelineSimulator() {
                 {state.query ? (
                   generateVectorVisualization()
                 ) : (
-                  <div className="h-16 bg-background border_BORDER rounded-md flex items-center justify-center text-muted-foreground text-sm">
+                  <div className="h-16 bg-background border border-border rounded-md flex items-center justify-center text-muted-foreground text-sm">
                     Vector will appear here
                   </div>
                 )}
