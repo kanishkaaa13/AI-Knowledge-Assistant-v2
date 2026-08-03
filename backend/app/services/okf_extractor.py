@@ -55,7 +55,7 @@ async def extract_okf_concepts(document_text: str, source_document_id: str) -> l
 
     ollama = OllamaLLMService()
     try:
-        model = settings.OLLAMA_DEFAULT_MODEL
+        model = settings.DEFAULT_CHAT_MODEL
         raw_response = await ollama.generate(prompt=prompt, model=model)
     except Exception as e:
         logger.exception("LLM generation failed during OKF extraction")

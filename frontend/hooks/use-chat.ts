@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
+  agentChat,
   createConversation,
   deleteConversation,
   exportConversation,
@@ -117,6 +118,7 @@ export function useChat() {
   const [isDraftConversation, setIsDraftConversation] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isAgentMode, setIsAgentMode] = React.useState(false);
   const [settings, setSettings] = React.useState(starterSettings);
   const [selectedDocumentIds, setSelectedDocumentIds] = React.useState<string[]>([]);
   const [generatedSummary, setGeneratedSummary] = React.useState<string | null>(null);
@@ -356,7 +358,7 @@ export function useChat() {
       const effectiveDocumentIds = selectedDocumentIds.length > 0 ? selectedDocumentIds : allDocs.map(d => d.id);
       const basePayload = {
         query: latestReferenceText ?? "",
-        model: settings.model,
+        model: settings.model as "llama3" | "mistral",
         document_ids: effectiveDocumentIds
       };
       if (tool === "summary") {
@@ -531,6 +533,15 @@ export function useChat() {
       const effectiveDocumentIds = selectedDocumentIds;
       console.log("[SEND] Selected doc IDs being sent:", effectiveDocumentIds);
       console.log("[SEND] Full payload:", { query: prompt, document_ids: effectiveDocumentIds, model: "llama3.2:3b" });
+      
+      // Agent mode: use agent chat API
+      if (isAgentMode) {
+        const result = await agentChat({ query: prompt });
+        updateAssistantMessage((current) => result.answer, true);
+        return;
+      }
+      
+      // Regular mode: use streaming chat
       if (settings.streamResponses) {
         await streamAssistantChat(
           {
@@ -542,17 +553,17 @@ export function useChat() {
             document_ids: effectiveDocumentIds
           } satisfies StreamPayload,
           {
-            onThinking(step, message, docs) {
+            onThinking(step, thinkingText, docs) {
               updateConversationCache(conversationId!, (current) => {
                 if (!current) return current as any;
                 return {
                   ...current,
-                  messages: (current.messages ?? []).map((message) =>
-                    message.id !== optimisticAssistantId
-                      ? message
+                  messages: (current.messages ?? []).map((msg) =>
+                    msg.id !== optimisticAssistantId
+                      ? msg
                       : {
-                          ...message,
-                          thinkingState: { step, message, docs }
+                          ...msg,
+                          thinkingState: { step, message: thinkingText, docs }
                         }
                   )
                 };
@@ -578,7 +589,8 @@ export function useChat() {
                       ? message
                       : {
                           ...message,
-                          citations: citations
+                          citations: citations,
+                          source: data.source || "documents"
                         }
                   )
                 };
@@ -696,7 +708,8 @@ export function useChat() {
     settings.model,
     settings.streamResponses,
     updateConversationCache,
-    allDocs
+    allDocs,
+    isAgentMode
   ]);
 
   return {
@@ -710,6 +723,7 @@ export function useChat() {
     isHistoryLoading: conversationsQuery.isLoading,
     isSettingsOpen,
     isSidebarOpen,
+    isAgentMode,
     isWorkingTools: toolMutation.isPending,
     quiz,
     searchResults,
@@ -720,6 +734,7 @@ export function useChat() {
     setInput,
     setIsSidebarOpen,
     setIsSettingsOpen,
+    setIsAgentMode,
     setSelectedDocumentIds,
     createConversation: createConversationDraft,
     deleteConversation: removeConversation,

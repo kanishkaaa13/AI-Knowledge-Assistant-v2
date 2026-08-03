@@ -20,7 +20,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
-    "next": "latest",
+    "next": "^16.2.10",
     "next-themes": "latest",
     "radix-ui": "^1.4.3",
     "react": "latest",
@@ -46,5 +46,10 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.1",
     "typescript": "latest"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.15"
+    }
   }
 }

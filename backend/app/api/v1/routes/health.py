@@ -23,7 +23,7 @@ async def ollama_health_check() -> dict[str, str]:
         async with httpx.AsyncClient(timeout=3.0) as client:
             response = await client.get(service.base_url)
             response.raise_for_status()
-        return {"status": "ok", "model": settings.OLLAMA_DEFAULT_MODEL}
+        return {"status": "ok", "model": settings.DEFAULT_CHAT_MODEL}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
 

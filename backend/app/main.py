@@ -73,24 +73,6 @@ def create_application() -> FastAPI:
     import httpx
     from contextlib import asynccontextmanager
 
-    async def keep_model_warm():
-        while True:
-            try:
-                async with httpx.AsyncClient(timeout=600) as client:
-                    await client.post(
-                        "http://localhost:11434/api/generate",
-                        json={
-                            "model": settings.OLLAMA_DEFAULT_MODEL,
-                            "prompt": "hi",
-                            "stream": False,
-                            "keep_alive": "10m"
-                        }
-                    )
-                print("[WARMUP] Model kept warm")
-            except Exception as e:
-                print(f"[WARMUP] Ollama not ready yet: {e}")
-            await asyncio.sleep(60)
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         import time
@@ -111,13 +93,31 @@ def create_application() -> FastAPI:
         except Exception as exc:
             print(f"[STARTUP] Warning: could not pre-warm embedding model: {exc}")
 
-        # Start Ollama keep-alive task
-        warmup_task = asyncio.create_task(keep_model_warm())
+        print(f"[STARTUP] LLM provider: {settings.LLM_PROVIDER} | model: {settings.DEFAULT_CHAT_MODEL}")
         
+        # Verify local Ollama availability at startup if selected as provider
+        if settings.LLM_PROVIDER.lower() == "ollama":
+            print(f"[STARTUP] Checking if local Ollama is reachable at {settings.OLLAMA_BASE_URL}...")
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    resp = await client.get(settings.OLLAMA_BASE_URL)
+                    resp.raise_for_status()
+                print("[STARTUP] Ollama check: OK")
+            except Exception as exc:
+                print("\n" + "="*80)
+                print(" [STARTUP ERROR] LOCAL OLLAMA SERVICE IS UNREACHABLE!")
+                print(f" Reason: {exc}")
+                print("-"*80)
+                print(" To fix this, please start the Ollama service locally:")
+                print("   1. Open a command prompt / terminal")
+                print("   2. Run command: ollama serve")
+                print("   3. Run command: ollama pull qwen2.5:3b-instruct (if not pulled already)")
+                print("="*80 + "\n")
+                raise SystemExit(1)
+
         yield  # App runs here
         
         print("[SHUTDOWN] Cleaning up...")
-        warmup_task.cancel()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,
@@ -180,6 +180,10 @@ def create_application() -> FastAPI:
                 "Access-Control-Allow-Credentials": "true",
             }
         )
+
+    # EXPERIMENTAL — parallel OKF pipeline, not the default RAG path.
+    from app.api.okf_routes import router as okf_router
+    app.include_router(okf_router, prefix=settings.API_V1_PREFIX)
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
     return app

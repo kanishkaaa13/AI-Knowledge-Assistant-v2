@@ -275,11 +275,11 @@ class RAGRetrievalService:
         results: list[VectorSearchResult]
         if hybrid:
             results = await self.vector_store.hybrid_similarity_search(
-                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids, filters=filters
+                user_id=user.id, query=query, top_k=k, document_ids=normalized_ids, filters=filters
             )
         else:
             results = await self.vector_store.semantic_similarity_search(
-                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids, filters=filters
+                user_id=user.id, query=query, top_k=k, document_ids=normalized_ids, filters=filters
             )
 
         print(f"[RAG] Results count: {len(results)}")

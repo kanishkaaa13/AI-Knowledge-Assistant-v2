@@ -46,6 +46,7 @@ interface ChatShellProps {
   isSettingsOpen: boolean;
   isSidebarOpen: boolean;
   isWorkingTools: boolean;
+  isAgentMode: boolean;
   messages: ChatMessage[];
   quiz: AssistantQuizItem[];
   searchResults: SemanticDocumentSearchItem[];
@@ -66,6 +67,7 @@ interface ChatShellProps {
   onSelectedDocumentIdsChange: (ids: string[]) => void;
   onSendMessage: () => Promise<void>;
   onSettingsChange: (settings: AssistantSettings) => void;
+  onAgentModeChange: (enabled: boolean) => void;
   onSettingsOpenChange: (open: boolean) => void;
   onSidebarOpenChange: (open: boolean) => void;
   onUseSuggestedPrompt: (prompt: string) => void;
@@ -83,6 +85,7 @@ export function ChatShell({
   isSettingsOpen,
   isSidebarOpen,
   isWorkingTools,
+  isAgentMode,
   messages,
   quiz,
   searchResults,
@@ -103,6 +106,7 @@ export function ChatShell({
   onSelectedDocumentIdsChange,
   onSendMessage,
   onSettingsChange,
+  onAgentModeChange,
   onSettingsOpenChange,
   onSidebarOpenChange,
   onUseSuggestedPrompt
@@ -118,6 +122,7 @@ export function ChatShell({
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"chat" | "notes" | "flashcards">("chat");
   const [activePdf, setActivePdf] = React.useState<{
+    documentId: string;
     filename: string;
     page: number;
     highlightText: string;
@@ -224,6 +229,21 @@ export function ChatShell({
               </button>
             </div>
 
+            {/* Agent Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Agent Mode</span>
+              <button
+                onClick={() => onAgentModeChange(!isAgentMode)}
+                className={`w-10 h-5 rounded-full transition-colors ${
+                  isAgentMode ? "bg-indigo-600" : "bg-muted"
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                  isAgentMode ? "translate-x-5" : "translate-x-0.5"
+                }`} />
+              </button>
+            </div>
+
             <div className="flex items-center gap-3">
               <Button
                 className="xl:hidden"
@@ -246,8 +266,8 @@ export function ChatShell({
                   messages={messages}
                   userName={user?.name ?? "You"}
                   onUsePrompt={onUseSuggestedPrompt}
-                  onCitationClick={(filename, page, content) => {
-                    setActivePdf({ filename, page, highlightText: content });
+                  onCitationClick={(filename, page, content, documentId) => {
+                    setActivePdf({ documentId: documentId || "", filename, page, highlightText: content });
                   }}
                   allDocsCount={allDocsCount}
                   chatCount={chatCount}
@@ -265,6 +285,7 @@ export function ChatShell({
               {activePdf && (
                 <div className="w-1/2 h-full p-4 overflow-hidden bg-[var(--bg-panel)] flex flex-col shrink-0">
                   <PDFViewerPanel
+                    documentId={activePdf.documentId}
                     filename={activePdf.filename}
                     initialPage={activePdf.page}
                     highlightText={activePdf.highlightText}

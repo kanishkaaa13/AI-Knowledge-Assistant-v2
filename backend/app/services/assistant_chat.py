@@ -81,17 +81,14 @@ class AssistantChatService:
                 prompt = build_rag_prompt(query=query, context=context)
 
         try:
-            answer = await self.ollama_service.generate(prompt=prompt, model=model)
+            answer = await self.ollama_service.generate(prompt=prompt, model=model, temperature=0.2)
             if not answer.strip():
                 answer = "I was unable to generate a response. Please try again."
         except HTTPException as exc:
             raise exc
         except Exception:
-            logger.exception("Ollama generation failed.")
-            answer = (
-                "The AI model is not running. Please run: "
-                f"ollama pull {settings.OLLAMA_DEFAULT_MODEL} && ollama serve"
-            )
+            logger.exception("LLM generation failed.")
+            answer = "The AI service encountered an error. Please check your API key configuration and try again."
 
         return {
             "query": query,
@@ -133,7 +130,7 @@ class AssistantChatService:
 
             full_answer = ""
             try:
-                async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+                async for token in self.ollama_service.stream_generate(prompt=prompt, model=model, temperature=0.2):
                     full_answer += token
                     yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             except Exception as e:
@@ -167,7 +164,18 @@ class AssistantChatService:
             print(traceback.format_exc())
             search_results = []
 
+        # Check if results are empty OR all below similarity threshold
+        SIMILARITY_THRESHOLD = 0.3
+        print(f"[THRESHOLD CALIBRATION] Threshold: {SIMILARITY_THRESHOLD}")
+        print(f"[THRESHOLD CALIBRATION] Retrieved {len(search_results)} chunks")
         if search_results:
+            for i, r in enumerate(search_results):
+                print(f"[THRESHOLD CALIBRATION] Chunk {i+1}: score={r.semantic_score:.4f} (threshold check: {'PASS' if r.semantic_score >= SIMILARITY_THRESHOLD else 'FAIL'})")
+        has_relevant_chunks = search_results and any(r.semantic_score >= SIMILARITY_THRESHOLD for r in search_results)
+        source = "documents" if has_relevant_chunks else "general_knowledge"
+        print(f"[THRESHOLD CALIBRATION] Final decision: {source} (has_relevant_chunks={has_relevant_chunks})")
+
+        if has_relevant_chunks:
             # Format context with explicit source titles, page numbers, and paragraphs for the LLM
             context_sections = []
             doc_names = []
@@ -184,21 +192,32 @@ class AssistantChatService:
             doc_display = doc_names[0] if doc_names else "documents"
             yield f"data: {json.dumps({'type': 'thinking', 'step': 'reading', 'message': f'Reading {doc_display}...', 'docs': doc_names})}\n\n"
         else:
-            yield f"data: {json.dumps({'type': 'thinking', 'step': 'reading', 'message': 'Analyzing general database...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'thinking', 'step': 'reading', 'message': 'No relevant documents found — answering from general knowledge'})}\n\n"
 
         print(f"[RAG 4] ChromaDB raw results: {[{'id': r.id, 'score': r.semantic_score, 'meta': r.metadata} for r in search_results]}")
+        print(f"[RAG 5] Source: {source}")
         print(f"[RAG 6] Context being sent to LLM: {context[:500] if context else 'EMPTY'}")
 
-        # Send context metadata to frontend
-        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model})}\n\n"
+        # Send context metadata to frontend with source field
+        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model, 'source': source})}\n\n"
 
         # ── Step 6: Build prompt exactly as specified ──────────────────────
         if context:
             prompt = build_rag_prompt(query=query, context=context)
         else:
             prompt = (
-                f"Answer from general knowledge. "
+                f"Answer from general knowledge with appropriate uncertainty. "
                 f"Note: no relevant content was found in the user's uploaded documents.\n"
+                f"IMPORTANT: You are answering WITHOUT access to the user's documents. "
+                f"Exercise caution and hedge appropriately:\n"
+                f"- For specific proper nouns (company names, product names, people, organizations), "
+                f"acknowledge uncertainty if you're not absolutely certain.\n"
+                f"- For niche facts, recent events, or specialized topics, indicate that your "
+                f"information may be incomplete or outdated.\n"
+                f"- Use phrases like \"I don't have reliable information on this specific [entity], "
+                f"but here's general context\" or \"This may not be current\" rather than stating "
+                f"facts as verified.\n"
+                f"- Only answer with high confidence for extremely well-established general knowledge.\n\n"
                 f"Start your reply with: \"I couldn't find this in your documents, "
                 f"but based on general knowledge: \"\n\n"
                 f"Question: {query}\nAnswer:"
@@ -211,11 +230,11 @@ class AssistantChatService:
 
         full_answer = ""
         try:
-            async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+            async for token in self.ollama_service.stream_generate(prompt=prompt, model=model, temperature=0.2):
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError):
-            msg = "Connection to Ollama lost. Make sure Ollama is running: ollama serve"
+            msg = "LLM connection lost. Check your API key and network configuration."
             print(f"[STREAM ERROR] {msg}")
             yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
             return

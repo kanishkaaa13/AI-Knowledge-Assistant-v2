@@ -40,6 +40,7 @@ export default function DashboardPage() {
       isSettingsOpen={chat.isSettingsOpen}
       isSidebarOpen={chat.isSidebarOpen}
       isWorkingTools={chat.isWorkingTools}
+      isAgentMode={chat.isAgentMode}
       messages={chat.activeConversation?.messages ?? []}
       quiz={chat.quiz}
       searchResults={chat.searchResults}
@@ -60,6 +61,7 @@ export default function DashboardPage() {
       onSelectedDocumentIdsChange={chat.setSelectedDocumentIds}
       onSendMessage={chat.sendMessage}
       onSettingsChange={chat.updateSettings}
+      onAgentModeChange={chat.setIsAgentMode}
       onSettingsOpenChange={chat.setIsSettingsOpen}
       onSidebarOpenChange={chat.setIsSidebarOpen}
       onUseSuggestedPrompt={chat.useSuggestedPrompt}

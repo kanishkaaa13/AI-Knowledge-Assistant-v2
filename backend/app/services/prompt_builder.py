@@ -5,7 +5,10 @@ GROUNDED_RAG_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
 
 Rules:
 1. Ground your answers strictly in the provided DOCUMENT CONTEXT.
-2. You MUST include source citations in your answer when referencing specific information. Format citations exactly like this: [Source: filename, Page X, Paragraph Y].
+2. CRITICAL: You MUST cite your sources inline with every claim. When you state a fact, immediately follow it with the source citation in brackets like this: [Source: filename, Page X, Paragraph Y].
+   - Example: "The system uses a microservices architecture [Source: architecture.pdf, Page 5, Paragraph 2]."
+   - Example: "Authentication is handled via JWT tokens [Source: security.md, Page 3, Paragraph 1]."
+   - Do NOT group citations at the end — place them immediately after the claim they support.
 3. Do NOT make up information or reference external knowledge not present in the context.
 4. If the provided context does not contain the answer, reply EXACTLY with: "I couldn't find this information in the selected documents."
 

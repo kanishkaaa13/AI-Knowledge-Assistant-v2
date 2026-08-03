@@ -20,7 +20,7 @@ export function ChatThread({
   messages: ChatMessage[];
   userName: string;
   onUsePrompt?: (prompt: string) => void;
-  onCitationClick?: (filename: string, page: number, content: string) => void;
+  onCitationClick?: (filename: string, page: number, content: string, documentId?: string) => void;
   allDocsCount?: number;
   chatCount?: number;
 }) {

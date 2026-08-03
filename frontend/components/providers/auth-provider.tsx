@@ -35,27 +35,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const refreshUser = React.useCallback(async () => {
-    // Skip refresh on public routes (login/register)
-    const isPublicRoute = pathname === "/login" || pathname === "/register";
+    // Get current pathname dynamically to avoid dependency issues
+    const currentPathname = typeof window !== "undefined" ? window.location.pathname : pathname;
+    
+    // Skip refresh on public routes (login/register) - just set unauthenticated without API calls
+    const isPublicRoute = currentPathname === "/login" || currentPathname === "/register";
     if (isPublicRoute) {
       setStatus("unauthenticated");
       setUser(null);
       setClientAuthCookie(false);
+      // Clear any stale auth data on public routes
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, "")
+            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+      }
       return;
     }
 
     setStatus("loading");
-
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        setUser(null);
-        setStatus("unauthenticated");
-        setClientAuthCookie(false);
-        router.replace("/login");
-        return;
-      }
-    }
 
     try {
       // First try to get the current user directly (works if access_token is valid)
@@ -64,60 +65,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("authenticated");
       setClientAuthCookie(true);
     } catch (firstError: any) {
-      const statusCode = firstError?.response?.status;
-      const is401 = statusCode === 401;
-      const isNetworkOrServer = !statusCode || statusCode >= 500;
-
-      if (is401) {
-        // Token may be expired — try refreshing
-        try {
-          const refreshData = await refreshSession();
-          if (typeof window !== "undefined" && refreshData.access_token) {
-            localStorage.setItem("access_token", refreshData.access_token);
-          }
-          const currentUser = await getCurrentUser();
-          setUser(currentUser);
-          setStatus("authenticated");
-          setClientAuthCookie(true);
-        } catch {
-          // Both failed — clear auth state and redirect
-          setUser(null);
-          setStatus("unauthenticated");
-          setClientAuthCookie(false);
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("access_token");
-          }
-          if (pathname !== "/login" && pathname !== "/register") {
-            router.replace("/login");
-          }
-        }
-      } else if (isNetworkOrServer) {
-        // Network error or 5xx — backend may be down (cold start).
-        // Treat as unauthenticated and redirect to login.
-        setUser(null);
-        setStatus("unauthenticated");
-        setClientAuthCookie(false);
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("access_token");
-        }
-        if (pathname !== "/login" && pathname !== "/register") {
-          router.replace("/login");
-        }
-      } else {
-        // Other non-auth error — mark as unauthenticated
-        setUser(null);
-        setStatus("unauthenticated");
-        setClientAuthCookie(false);
-        if (pathname !== "/login" && pathname !== "/register") {
-          router.replace("/login");
-        }
+      // Any error - clear auth state and redirect to login
+      setUser(null);
+      setStatus("unauthenticated");
+      setClientAuthCookie(false);
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, "")
+            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+      }
+      if (currentPathname !== "/login" && currentPathname !== "/register") {
+        router.replace("/login");
       }
     }
-  }, [pathname, router]);
+  }, [router]);
 
   React.useEffect(() => {
-    void refreshUser();
-  }, [refreshUser]);
+    // Only refresh if not on login/register page to avoid infinite loops
+    const isPublicRoute = pathname === "/login" || pathname === "/register";
+    if (!isPublicRoute) {
+      void refreshUser();
+    } else {
+      // On public routes, immediately set unauthenticated status without any delays
+      setStatus("unauthenticated");
+      setUser(null);
+      setClientAuthCookie(false);
+    }
+  }, [pathname]);
 
   React.useEffect(() => {
     const handleExpired = async () => {
@@ -132,9 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });
       }
-      toast.error("Your session expired. Please log in again.");
-
+      // Only show toast if not already on login page
       if (pathname !== "/login" && pathname !== "/register") {
+        toast.error("Your session expired. Please log in again.");
         router.replace("/login");
       }
     };

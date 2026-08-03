@@ -18,6 +18,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   citations?: Citation[];
   suggestions?: string[];
+  source?: "documents" | "general_knowledge";
   thinkingState?: {
     step: string;
     message: string;

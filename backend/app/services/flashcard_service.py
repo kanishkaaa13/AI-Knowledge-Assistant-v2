@@ -5,6 +5,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
+from app.core.config import settings
 from app.models.user import User
 from app.models.flashcard import Flashcard
 from app.repositories.flashcard import FlashcardRepository
@@ -49,7 +50,7 @@ class FlashcardService:
         document_ids: List[str],
         query: Optional[str] = None,
         count: int = 5,
-        model: str = "llama3"
+        model: str = settings.DEFAULT_CHAT_MODEL
     ) -> List[Flashcard]:
         # Clean document list
         cleaned_doc_ids = [doc_id for doc_id in document_ids if doc_id]

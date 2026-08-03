@@ -44,17 +44,18 @@ class Settings(BaseSettings):
     RAG_CHUNK_SIZE: int = 500
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
-    LLM_PROVIDER: str = "groq"
+    LLM_PROVIDER: str = "ollama"
+    DEFAULT_CHAT_MODEL: str = "qwen2.5:3b-instruct"
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL_NAME: str = "gpt-4.1-mini"
-    # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
-    LLM_MODEL_NAME: str = "llama3.2:3b"
+    OPENAI_MODEL_NAME: str = "gpt-4o-mini"
+    USE_OPENAI: bool = False
+    # Aligned with DEFAULT_CHAT_MODEL for consistency
+    LLM_MODEL_NAME: str = "qwen2.5:3b-instruct"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_DEFAULT_MODEL: str = "llama3.2:3b"
     OLLAMA_KEEP_ALIVE: str = "5m"
     ENFORCE_LOCAL_ONLY_AI: bool = False
     BACKEND_CORS_ORIGINS: list[str] = [
@@ -93,9 +94,23 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_openai_config(self) -> "Settings":
-        if self.LLM_PROVIDER.lower() == "openai":
+        if self.USE_OPENAI:
+            self.LLM_PROVIDER = "openai"
+            self.DEFAULT_CHAT_MODEL = self.OPENAI_MODEL_NAME
+
+        provider = self.LLM_PROVIDER.lower()
+        if provider == "openai":
             if not self.OPENAI_API_KEY or not self.OPENAI_API_KEY.strip():
-                raise ValueError("OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai'.")
+                raise ValueError(
+                    "OPENAI_API_KEY must be set when LLM_PROVIDER is 'openai' or USE_OPENAI is True. "
+                    "Get a key at https://platform.openai.com/api-keys and add it to backend/.env"
+                )
+        elif provider == "groq":
+            if not self.GROQ_API_KEY or self.GROQ_API_KEY.strip() in ("", "PASTE_YOUR_GROQ_KEY_HERE"):
+                raise ValueError(
+                    "GROQ_API_KEY must be set when LLM_PROVIDER is 'groq'. "
+                    "Get a key at https://console.groq.com/keys and add it to backend/.env"
+                )
         return self
 
 

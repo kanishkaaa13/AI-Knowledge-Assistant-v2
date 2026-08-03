@@ -4,6 +4,7 @@ export interface RetrievedChunk {
   document_title: string;
   filename: string;
   page: number | null;
+  paragraph_index: number | null;
   content: string;
   score: number;
   semantic_score: number;

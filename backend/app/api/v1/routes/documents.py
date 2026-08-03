@@ -1,11 +1,13 @@
 import uuid
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.rate_limit import apply_rate_limit
 from app.core.sanitize import ensure_present, sanitize_text
 from app.db.session import get_db
@@ -315,5 +317,29 @@ async def delete_document(
 
     delete_document_file(document)
     RAGIngestionService(db).delete_document_index(document.id)
-    repository.delete(document)
-    return {"message": "Document deleted successfully."}
+
+
+@router.get("/{document_id}/file")
+async def get_document_file(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Serve the actual file for PDF preview."""
+    repository = DocumentRepository(db)
+    document = repository.get_by_user(document_id, current_user.id)
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    
+    if not document.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File path not found in database.")
+    
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk.")
+    
+    return FileResponse(
+        path=file_path,
+        media_type=document.mime_type or "application/octet-stream",
+        filename=document.file_name,
+    )

@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
 
+from app.core.config import settings
+
 class FlashcardBase(BaseModel):
     front: str = Field(..., min_length=1)
     back: str = Field(..., min_length=1)
@@ -36,4 +38,4 @@ class FlashcardGenerateRequest(BaseModel):
     query: Optional[str] = Field(None, description="Optional query to focus generation")
     document_ids: List[str] = Field(default_factory=list, description="Documents to generate from")
     count: int = Field(5, ge=1, le=20)
-    model: str = Field("llama3")
+    model: str = Field(default_factory=lambda: settings.DEFAULT_CHAT_MODEL)
