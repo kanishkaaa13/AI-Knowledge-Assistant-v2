@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from sentence_transformers import CrossEncoder
-from typing import List
+from typing import List, TYPE_CHECKING
 
-from app.services.vector_store import VectorSearchResult
+if TYPE_CHECKING:
+    from app.services.vector_store import VectorSearchResult
 
 logger = logging.getLogger(__name__)
 

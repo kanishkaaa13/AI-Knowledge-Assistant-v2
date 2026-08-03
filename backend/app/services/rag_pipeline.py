@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 
 from fastapi import HTTPException, status
@@ -19,6 +20,61 @@ from app.services.document_parser import StoredDocumentParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
+
+
+def detect_sections(text: str, file_type: str = ".pdf") -> list[tuple[str, int, int]]:
+    """Detect sections based on file type with tightened heuristics.
+    
+    Args:
+        text: Extracted text from document
+        file_type: File extension (.pdf, .md, .txt, .docx)
+        
+    Returns:
+        List of (section_name, level, line_number) tuples
+    """
+    sections = []
+    
+    if file_type == ".md":
+        # Markdown syntax
+        for line_num, line in enumerate(text.split('\n')):
+            line = line.strip()
+            if line.startswith('# '):
+                sections.append((line[2:].strip(), 1, line_num))
+            elif line.startswith('## '):
+                sections.append((line[3:].strip(), 2, line_num))
+            elif line.startswith('### '):
+                sections.append((line[4:].strip(), 3, line_num))
+    
+    elif file_type in {".pdf", ".txt"}:
+        lines = text.split('\n')
+        for line_num, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Numbered sections: "3.1 Section Name"
+            if re.match(r'^\d+\.\d+\s+[A-Z]', line):
+                sections.append((line, 2, line_num))
+            # Chapter/Section keywords
+            elif re.match(r'^(Chapter|Section|Unit)\s+\d+', line, re.IGNORECASE):
+                sections.append((line, 1, line_num))
+            # All-caps lines with tightened rules:
+            # - Must be 2+ words (filter out single-word artifacts)
+            # - Length between 5 and 80 chars (filter out logos/footers)
+            # - Must be followed by body text (not another short line)
+            elif line.isupper() and len(line.split()) >= 2 and 5 <= len(line) <= 80:
+                # Check if next line has substantial content
+                if line_num + 1 < len(lines):
+                    next_line = lines[line_num + 1].strip()
+                    if len(next_line) > 20:  # Next line has substantial content
+                        sections.append((line, 1, line_num))
+    
+    elif file_type == ".docx":
+        # Would need to parse the actual DOCX structure
+        # For now, use same heuristics as PDF
+        pass
+    
+    return sections
 
 
 def _chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> list[str]:
@@ -84,6 +140,14 @@ class RAGIngestionService:
             from app.services.document_parser import ParsedDocumentPage
             pages = [ParsedDocumentPage(page_number=1, text=document.extracted_text or "")]
 
+        # Detect sections from full document text
+        full_text = document.extracted_text or ""
+        sections = detect_sections(full_text, document.file_extension.lower())
+        print(f"[INDEX] Sections detected: {len(sections)} for {document.file_name}")
+        if sections:
+            for section, level, line_num in sections[:5]:  # Log first 5 sections
+                print(f"[INDEX]   H{level}: {section[:60]}...")
+        
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.RAG_CHUNK_SIZE,
             chunk_overlap=settings.RAG_CHUNK_OVERLAP,
@@ -136,10 +200,27 @@ class RAGIngestionService:
         chunk_payloads: list[dict] = []
         vector_records: list[VectorRecord] = []
         global_chunk_index = 0
+        
+        # Track current section context
+        current_section = "Introduction"
+        current_section_level = 0
+        section_index = 0
+        lines_so_far = 0
 
         for page in pages:
             # Detect paragraphs by double newlines
             paragraphs = [p.strip() for p in page.text.split("\n\n") if p.strip()]
+            
+            # Update section context based on lines processed
+            page_lines = page.text.split('\n')
+            for line in page_lines:
+                lines_so_far += 1
+                # Check if we've passed a section boundary
+                while section_index < len(sections) and sections[section_index][2] < lines_so_far:
+                    current_section = sections[section_index][0]
+                    current_section_level = sections[section_index][1]
+                    section_index += 1
+            
             for p_idx, paragraph_text in enumerate(paragraphs, start=1):
                 # Split paragraph into chunks if it is too large
                 if len(paragraph_text) <= settings.RAG_CHUNK_SIZE:
@@ -160,6 +241,8 @@ class RAGIngestionService:
                         "chunk_id": vector_id,
                         "page": str(page.page_number),
                         "paragraph_index": str(p_idx),
+                        "section": current_section,
+                        "section_level": str(current_section_level),
                     }
                     if best_okf:
                         chunk_metadata["okf_type"] = best_okf.type
