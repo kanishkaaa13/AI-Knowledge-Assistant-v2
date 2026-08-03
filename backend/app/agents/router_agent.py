@@ -6,7 +6,15 @@ from typing import Any
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
-from app.agents.tools import answer_general_knowledge, search_documents, summarize_document
+from app.agents.tools import (
+    answer_general_knowledge,
+    export_notes,
+    flashcard_generator,
+    keyword_search,
+    quiz_generator,
+    search_documents,
+    summarize_document,
+)
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -43,15 +51,24 @@ def get_agent_llm() -> ChatOpenAI:
 def build_router_agent():
     """Create and return a compiled LangGraph ReAct agent with tools."""
     llm = get_agent_llm()
-    tools = [search_documents, summarize_document, answer_general_knowledge]
+    tools = [
+        search_documents,
+        summarize_document,
+        answer_general_knowledge,
+        keyword_search,
+        flashcard_generator,
+        quiz_generator,
+        export_notes,
+    ]
     return create_react_agent(llm, tools)
 
 
-def run_agent(user_query: str) -> dict[str, Any]:
+def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
     """Execute the router agent for a user query and return the answer and called tools.
 
     Args:
         user_query: The query string from the user.
+        user_id: The user ID string to scope tool operations. Required for multi-user isolation.
 
     Returns:
         A dictionary with keys:
@@ -60,7 +77,11 @@ def run_agent(user_query: str) -> dict[str, Any]:
             - 'raw_messages': list (full conversation messages output)
     """
     agent = build_router_agent()
-    result = agent.invoke({"messages": [("user", user_query)]})
+    # Pass user_id in state for tools to access
+    state = {"messages": [("user", user_query)]}
+    if user_id:
+        state["user_id"] = user_id
+    result = agent.invoke(state)
     messages = result.get("messages", [])
 
     tools_called: list[str] = []

@@ -22,6 +22,7 @@ from app.schemas.document import (
     UploadedDocumentRead,
 )
 from app.services.background_jobs import process_document_ingestion
+from app.services.bm25_index import get_bm25_service
 from app.services.document_upload import (
     create_document_record,
     delete_document_file,
@@ -181,6 +182,8 @@ async def upload_document(
 
         try:
             RAGIngestionService(db).index_document(document)
+            # Invalidate BM25 index after successful indexing
+            get_bm25_service().invalidate_user(current_user.id)
         except Exception as e:
             print(f"[INDEX ERROR] {e}")
             document.status = "pending"
@@ -293,6 +296,8 @@ async def reindex_document(
 
     try:
         chunks = RAGIngestionService(db).index_document(document)
+        # Invalidate BM25 index after successful reindexing
+        get_bm25_service().invalidate_user(current_user.id)
         print(f"[REINDEX] Storing {len(chunks)} chunks for doc {document_id}")
         print(f"[REINDEX] Complete [OK]")
     except Exception as e:
@@ -317,6 +322,8 @@ async def delete_document(
 
     delete_document_file(document)
     RAGIngestionService(db).delete_document_index(document.id)
+    # Invalidate BM25 index after document deletion
+    get_bm25_service().invalidate_user(current_user.id)
 
 
 @router.get("/{document_id}/file")

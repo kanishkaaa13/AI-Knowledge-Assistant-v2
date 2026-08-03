@@ -497,6 +497,22 @@ class VectorStoreService:
         logger.info(f"[HYBRID] BM25-only top chunks: {[bm25_chunk_data.get(r[0], {}).get('chunk', {}).document.file_name if bm25_chunk_data.get(r[0]) else 'unknown' for r in bm25_results[:top_k]]}")
         logger.info(f"[HYBRID] Fused top chunks: {[r.metadata.get('filename', 'unknown') for r in final_results]}")
         
+        # Duplicate chunk safety check before reranking
+        chunk_ids_seen = {}
+        deduped_results = []
+        for result in final_results:
+            chunk_id = result.id
+            if chunk_id in chunk_ids_seen:
+                logger.warning(f"[HYBRID] Duplicate chunk ID found: {chunk_id}, keeping higher-scored occurrence")
+                # Keep the one with higher RRF score (earlier in list due to sorting)
+                continue
+            chunk_ids_seen[chunk_id] = True
+            deduped_results.append(result)
+        
+        if len(deduped_results) != len(final_results):
+            logger.info(f"[HYBRID] Deduped {len(final_results) - len(deduped_results)} duplicate chunks")
+            final_results = deduped_results
+        
         # Apply cross-encoder reranking if we have results
         if final_results:
             reranker = get_reranker_service()
