@@ -206,8 +206,18 @@ class AssistantChatService:
             prompt = build_rag_prompt(query=query, context=context)
         else:
             prompt = (
-                f"Answer from general knowledge. "
+                f"Answer from general knowledge with appropriate uncertainty. "
                 f"Note: no relevant content was found in the user's uploaded documents.\n"
+                f"IMPORTANT: You are answering WITHOUT access to the user's documents. "
+                f"Exercise caution and hedge appropriately:\n"
+                f"- For specific proper nouns (company names, product names, people, organizations), "
+                f"acknowledge uncertainty if you're not absolutely certain.\n"
+                f"- For niche facts, recent events, or specialized topics, indicate that your "
+                f"information may be incomplete or outdated.\n"
+                f"- Use phrases like \"I don't have reliable information on this specific [entity], "
+                f"but here's general context\" or \"This may not be current\" rather than stating "
+                f"facts as verified.\n"
+                f"- Only answer with high confidence for extremely well-established general knowledge.\n\n"
                 f"Start your reply with: \"I couldn't find this in your documents, "
                 f"but based on general knowledge: \"\n\n"
                 f"Question: {query}\nAnswer:"
