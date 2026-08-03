@@ -12,6 +12,7 @@ from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 from app.services.reranker import get_reranker_service
+from app.services.bm25_index import get_bm25_service
 
 logger = logging.getLogger(__name__)
 
@@ -365,149 +366,60 @@ class VectorStoreService:
         document_ids: list[str] | None = None,
         filters: dict | None = None,
     ) -> list[VectorSearchResult]:
-        """Hybrid search combining semantic search and keyword search using Reciprocal Rank Fusion (RRF)."""
-        import re
-        from sqlalchemy import select, or_
+        """Hybrid search combining semantic search and BM25 keyword search using Reciprocal Rank Fusion (RRF)."""
+        
+        # Run semantic search
+        logger.info(f"[HYBRID] Running semantic search for query: {query}")
+        semantic_results = await self.similarity_search(user_id, query, top_k=top_k * 3, document_ids=document_ids, filters=filters)
+        logger.info(f"[HYBRID] Semantic search returned {len(semantic_results)} results")
+        
+        # Run BM25 keyword search in parallel
+        logger.info(f"[HYBRID] Running BM25 keyword search for query: {query}")
+        bm25_service = get_bm25_service()
+        bm25_results = bm25_service.search(user_id, query, top_k=top_k * 3)
+        logger.info(f"[HYBRID] BM25 search returned {len(bm25_results)} results")
+        
+        # Get chunk data for BM25 results
         from app.db.session import db_manager
         from app.models.document_chunk import DocumentChunk
         from app.models.uploaded_document import UploadedDocument
-
-        # Tokenize query to terms
-        stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "of", "is", "are", "was", "were", "be", "been", "this", "that", "it", "he", "she", "they", "we", "you"}
-        words = [re.sub(r'[^a-zA-Z0-9]', '', w).lower() for w in query.split()]
-        terms = [w for w in words if w and w not in stop_words]
-        if not terms and words:
-            terms = [w for w in words if w]
-
-        sql_results = []
-        if terms:
-            try:
-                # Load OKF records mapping to filter chunks
-                okf_records_map = {}
-                try:
-                    with db_manager.session_factory() as session:
-                        from app.models.okf_record import OKFRecord
-                        stmt_okf = select(OKFRecord)
-                        if document_ids:
-                            stmt_okf = stmt_okf.where(OKFRecord.source_document_id.in_([uuid.UUID(d) for d in document_ids if d]))
-                        else:
-                            stmt_okf = stmt_okf.join(UploadedDocument).where(UploadedDocument.user_id == user_id)
-                        records = session.scalars(stmt_okf).all()
-                        for r in records:
-                            okf_records_map.setdefault(r.source_document_id, []).append(r)
-                except Exception as e:
-                    logger.error("Failed to load OKF records for hybrid SQL filter: %s", e)
-
-                def find_best_okf_match(chunk_txt: str, okf_recs: list[OKFRecord]) -> OKFRecord | None:
-                    if not okf_recs:
-                        return None
-                    chunk_words = set(re.findall(r"\w+", chunk_txt.lower()))
-                    if not chunk_words:
-                        return okf_recs[0]
-                    best_m = None
-                    best_s = -1
-                    for rec in okf_recs:
-                        title_words = set(re.findall(r"\w+", rec.title.lower()))
-                        tags_words = {t.lower() for t in rec.tags} if isinstance(rec.tags, list) else set()
-                        rec_words = title_words.union(tags_words)
-                        overlap = len(chunk_words.intersection(rec_words))
-                        if overlap > best_s:
-                            best_s = overlap
-                            best_m = rec
-                    return best_m
-
-                with db_manager.session_factory() as session:
-                    conditions = []
-                    for term in terms:
-                        conditions.append(DocumentChunk.content.ilike(f"%{term}%"))
-
-                    stmt = select(DocumentChunk).join(UploadedDocument).where(
-                        UploadedDocument.user_id == user_id
-                    )
-
-                    if document_ids:
-                        stmt = stmt.where(UploadedDocument.id.in_([uuid.UUID(d) for d in document_ids if d]))
-
-                    stmt = stmt.where(or_(*conditions)).limit(50)
-                    db_chunks = session.scalars(stmt).all()
-
-                    for chunk in db_chunks:
-                        # Match nearest OKFRecord
-                        doc_okf_list = okf_records_map.get(chunk.document_id, [])
-                        best_okf = find_best_okf_match(chunk.content, doc_okf_list)
-
-                        # Apply filters to SQL chunk
-                        if filters:
-                            # check okf_type
-                            if "type" in filters or "okf_type" in filters:
-                                if not best_okf:
-                                    continue
-                                req_type = filters.get("type") or filters.get("okf_type")
-                                if isinstance(req_type, list):
-                                    if best_okf.type not in req_type:
-                                        continue
-                                elif best_okf.type != req_type:
-                                    continue
-                                    
-                            # check okf_tags
-                            if "tags" in filters or "okf_tags" in filters:
-                                if not best_okf:
-                                    continue
-                                req_tags = filters.get("tags") or filters.get("okf_tags")
-                                okf_tags_set = {t.lower() for t in best_okf.tags} if isinstance(best_okf.tags, list) else set()
-                                if isinstance(req_tags, list):
-                                    req_tags_set_req = {t.strip().lower() for t in req_tags if t.strip()}
-                                    if not req_tags_set_req.intersection(okf_tags_set):
-                                        continue
-                                else:
-                                    if req_tags.strip().lower() not in okf_tags_set:
-                                        continue
-
-                        matches = 0
-                        content_lower = chunk.content.lower()
-                        for term in terms:
-                            matches += content_lower.count(term)
-
-                        chunk_meta = {
-                            "document_id": str(chunk.document_id),
-                            "filename": chunk.document.file_name,
-                            "document_title": chunk.document.title,
-                            "page": chunk.page_number,
-                            "paragraph_index": chunk.paragraph_index,
-                            "chunk_index": chunk.chunk_index
-                        }
-                        if best_okf:
-                            chunk_meta["okf_type"] = best_okf.type
-                            chunk_meta["okf_tags"] = ",".join(best_okf.tags) if isinstance(best_okf.tags, list) else str(best_okf.tags)
-
-                        sql_results.append({
-                            "chunk_id": str(chunk.id),
-                            "document_id": str(chunk.document_id),
-                            "filename": chunk.document.file_name,
-                            "title": chunk.document.title,
-                            "page": chunk.page_number,
-                            "paragraph_index": chunk.paragraph_index,
-                            "content": chunk.content,
-                            "chunk_index": chunk.chunk_index,
-                            "score": matches,
-                            "metadata": chunk_meta
-                        })
-                    sql_results.sort(key=lambda x: x["score"], reverse=True)
-            except Exception as e:
-                logger.error("SQL keyword search failed in hybrid search: %s", e)
-
-        # Get semantic results
-        semantic_results = await self.similarity_search(user_id, query, top_k=top_k * 3, document_ids=document_ids, filters=filters)
-
+        from sqlalchemy import select
+        
+        bm25_chunk_data = {}
+        if bm25_results:
+            with db_manager.session_factory() as session:
+                for chunk_id, score in bm25_results:
+                    # Parse chunk_id (format: "document_id:chunk_index")
+                    if ":" in chunk_id:
+                        doc_id, chunk_idx = chunk_id.split(":", 1)
+                        try:
+                            chunk = session.scalar(
+                                select(DocumentChunk).where(
+                                    DocumentChunk.document_id == uuid.UUID(doc_id),
+                                    DocumentChunk.chunk_index == int(chunk_idx)
+                                )
+                            )
+                            if chunk:
+                                bm25_chunk_data[chunk_id] = {
+                                    "chunk": chunk,
+                                    "score": score
+                                }
+                        except Exception as e:
+                            logger.warning(f"Failed to load chunk {chunk_id}: {e}")
+        
         # Apply Reciprocal Rank Fusion (RRF)
+        # RRF formula: score = sum(1 / (k + rank)) for each result list
+        k = 60  # constant for RRF
+        
         rrf_scores = {}
         chunk_data_map = {}
-
+        
+        # Process semantic results
         for rank, res in enumerate(semantic_results, start=1):
             doc_id = str(res.metadata.get("document_id", ""))
             chunk_idx = int(res.metadata.get("chunk_index", 0))
             key = (doc_id, chunk_idx)
-
+            
             chunk_data_map[key] = {
                 "id": res.id,
                 "document": res.document,
@@ -515,41 +427,55 @@ class VectorStoreService:
                 "semantic_score": res.semantic_score,
                 "keyword_score": 0.0
             }
-            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (60.0 + rank))
-
-        for rank, res in enumerate(sql_results, start=1):
-            doc_id = res["document_id"]
-            chunk_idx = res["chunk_index"]
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (k + rank))
+        
+        # Process BM25 results
+        for rank, (chunk_id, bm25_score) in enumerate(bm25_results, start=1):
+            if chunk_id not in bm25_chunk_data:
+                continue
+                
+            chunk = bm25_chunk_data[chunk_id]["chunk"]
+            doc_id = str(chunk.document_id)
+            chunk_idx = chunk.chunk_index
             key = (doc_id, chunk_idx)
-
+            
             if key not in chunk_data_map:
                 chunk_data_map[key] = {
-                    "id": res["chunk_id"],
-                    "document": res["content"],
-                    "metadata": res["metadata"],
+                    "id": chunk_id,
+                    "document": chunk.content,
+                    "metadata": {
+                        "document_id": doc_id,
+                        "filename": chunk.document.file_name,
+                        "document_title": chunk.document.title,
+                        "page": chunk.page_number,
+                        "paragraph_index": chunk.paragraph_index,
+                        "chunk_index": chunk.chunk_index
+                    },
                     "semantic_score": 0.0,
-                    "keyword_score": float(res["score"])
+                    "keyword_score": bm25_score
                 }
             else:
-                chunk_data_map[key]["keyword_score"] = float(res["score"])
-                if "paragraph_index" not in chunk_data_map[key]["metadata"] and res.get("paragraph_index") is not None:
-                    chunk_data_map[key]["metadata"]["paragraph_index"] = res["paragraph_index"]
-
-            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (60.0 + rank))
-
+                chunk_data_map[key]["keyword_score"] = bm25_score
+            
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (k + rank))
+        
+        # Sort by RRF score
         sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
-
+        
+        # Build final results
         final_results = []
         seen_texts = set()
+        
         for key in sorted_keys:
             data = chunk_data_map[key]
             text_norm = data["document"].strip().lower()
             if text_norm in seen_texts:
                 continue
             seen_texts.add(text_norm)
-
-            # Normalize keyword score to a reasonable range
+            
+            # Normalize keyword score to 0-1 range
             k_score = min(data["keyword_score"], 10.0) / 10.0
+            
             final_results.append(
                 VectorSearchResult(
                     id=data["id"],
@@ -560,8 +486,23 @@ class VectorStoreService:
                     keyword_score=k_score
                 )
             )
+            
             if len(final_results) >= top_k:
                 break
+        
+        logger.info(f"[HYBRID] Fused results: {len(final_results)} chunks")
+        
+        # Log comparison
+        logger.info(f"[HYBRID] Semantic-only top chunks: {[r.metadata.get('filename', 'unknown') for r in semantic_results[:top_k]]}")
+        logger.info(f"[HYBRID] BM25-only top chunks: {[bm25_chunk_data.get(r[0], {}).get('chunk', {}).document.file_name if bm25_chunk_data.get(r[0]) else 'unknown' for r in bm25_results[:top_k]]}")
+        logger.info(f"[HYBRID] Fused top chunks: {[r.metadata.get('filename', 'unknown') for r in final_results]}")
+        
+        # Apply cross-encoder reranking if we have results
+        if final_results:
+            reranker = get_reranker_service()
+            final_results = reranker.rerank(query, final_results, top_k=top_k)
+            logger.info(f"[HYBRID] After reranking: {len(final_results)} chunks")
+        
         return final_results
 
     async def semantic_similarity_search(

@@ -45,14 +45,14 @@ class Settings(BaseSettings):
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
     LLM_PROVIDER: str = "ollama"
-    DEFAULT_CHAT_MODEL: str = "qwen2.5:3b-instruct"
+    DEFAULT_CHAT_MODEL: str = "llama3.2:1b"
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     USE_OPENAI: bool = False
     # Aligned with DEFAULT_CHAT_MODEL for consistency
-    LLM_MODEL_NAME: str = "qwen2.5:3b-instruct"
+    LLM_MODEL_NAME: str = "llama3.2:1b"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434"

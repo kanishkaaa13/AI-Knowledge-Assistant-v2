@@ -250,20 +250,48 @@ class OllamaLLMService:
         if temperature is not None:
             payload["options"] = {"temperature": temperature}
         
+        logger.info("[OLLAMA REQUEST] Payload: %s", json.dumps(payload, indent=2))
+        
         start_time = time.time()
         logger.info("[TIMING] Ollama request sent at %.3f", start_time)
         
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(600.0, connect=10.0)
-        ) as client:
-            resp = await client.post(
-                f"{base_url}/api/generate",
-                json=payload,
-            )
-            resp.raise_for_status()
-            end_time = time.time()
-            logger.info("[TIMING] Ollama response received at %.3f (duration: %.3f seconds)", end_time, end_time - start_time)
-            return resp.json()["response"]
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(600.0, connect=10.0)
+            ) as client:
+                try:
+                    resp = await client.post(
+                        f"{base_url}/api/generate",
+                        json=payload,
+                    )
+                except httpx.ConnectError as e:
+                    logger.error("[OLLAMA ERROR] Connection failed: %s", e)
+                    raise RuntimeError(
+                        "Ollama is not running or is unreachable. "
+                        f"Please ensure Ollama is running at {base_url}"
+                    ) from e
+                except httpx.TimeoutException as e:
+                    logger.error("[OLLAMA ERROR] Timeout: %s", e)
+                    raise RuntimeError(
+                        f"Ollama request timed out. The model may be loading slowly."
+                    ) from e
+                
+                logger.info("[OLLAMA RESPONSE] Status: %d", resp.status_code)
+                
+                if resp.status_code != 200:
+                    logger.error("[OLLAMA ERROR] Non-200 response: %s", resp.text)
+                    raise RuntimeError(
+                        f"Ollama returned error {resp.status_code}: {resp.text[:200]}"
+                    )
+                
+                end_time = time.time()
+                logger.info("[TIMING] Ollama response received at %.3f (duration: %.3f seconds)", end_time, end_time - start_time)
+                return resp.json()["response"]
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            logger.error("[OLLAMA ERROR] Unexpected error: %s", e)
+            raise RuntimeError(f"Ollama generation failed: {str(e)}") from e
 
     async def _ollama_stream(self, prompt: str, model: str, temperature: float | None = None) -> AsyncIterator[str]:
         import os
@@ -282,32 +310,59 @@ class OllamaLLMService:
         if temperature is not None:
             payload["options"] = {"temperature": temperature}
         
+        logger.info("[OLLAMA STREAM REQUEST] Payload: %s", json.dumps(payload, indent=2))
+        
         start_time = time.time()
         logger.info("[TIMING] Ollama stream request sent at %.3f", start_time)
         first_token_time = None
         
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(600.0, connect=10.0)
-        ) as client:
-            async with client.stream(
-                "POST",
-                f"{base_url}/api/generate",
-                json=payload,
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    token = chunk.get("response", "")
-                    if token:
-                        if first_token_time is None:
-                            first_token_time = time.time()
-                            logger.info("[TIMING] First token received at %.3f (time to first token: %.3f seconds)", first_token_time, first_token_time - start_time)
-                        yield token
-                    if chunk.get("done", False):
-                        break
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(600.0, connect=10.0)
+            ) as client:
+                try:
+                    async with client.stream(
+                        "POST",
+                        f"{base_url}/api/generate",
+                        json=payload,
+                    ) as response:
+                        logger.info("[OLLAMA STREAM RESPONSE] Status: %d", response.status_code)
+                        
+                        if response.status_code != 200:
+                            logger.error("[OLLAMA STREAM ERROR] Non-200 response: %s", await response.aread())
+                            raise RuntimeError(
+                                f"Ollama stream returned error {response.status_code}"
+                            )
+                        
+                        async for line in response.aiter_lines():
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                chunk = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            token = chunk.get("response", "")
+                            if token:
+                                if first_token_time is None:
+                                    first_token_time = time.time()
+                                    logger.info("[TIMING] First token received at %.3f (time to first token: %.3f seconds)", first_token_time, first_token_time - start_time)
+                                yield token
+                            if chunk.get("done", False):
+                                break
+                except httpx.ConnectError as e:
+                    logger.error("[OLLAMA STREAM ERROR] Connection failed: %s", e)
+                    raise RuntimeError(
+                        "Ollama is not running or is unreachable. "
+                        f"Please ensure Ollama is running at {base_url}"
+                    ) from e
+                except httpx.TimeoutException as e:
+                    logger.error("[OLLAMA STREAM ERROR] Timeout: %s", e)
+                    raise RuntimeError(
+                        f"Ollama stream request timed out. The model may be loading slowly."
+                    ) from e
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            logger.error("[OLLAMA STREAM ERROR] Unexpected error: %s", e)
+            raise RuntimeError(f"Ollama stream generation failed: {str(e)}") from e
