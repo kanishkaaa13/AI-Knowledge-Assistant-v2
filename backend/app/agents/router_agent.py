@@ -77,11 +77,9 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
             - 'raw_messages': list (full conversation messages output)
     """
     agent = build_router_agent()
-    # Pass user_id in state for tools to access
-    state = {"messages": [("user", user_query)]}
-    if user_id:
-        state["user_id"] = user_id
-    result = agent.invoke(state)
+    # Pass user_id in configurable for tools to access via RunnableConfig
+    config = {"configurable": {"user_id": user_id}} if user_id else {}
+    result = agent.invoke({"messages": [("user", user_query)]}, config=config)
     messages = result.get("messages", [])
 
     tools_called: list[str] = []

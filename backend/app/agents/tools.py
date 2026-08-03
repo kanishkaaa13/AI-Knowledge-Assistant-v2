@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from app.core.config import settings
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @tool
-async def search_documents(query: str, top_k: int = 4, user_id: str | None = None) -> str:
+async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | None = None) -> str:
     """Search documents using semantic similarity (vector embeddings). Best for conceptual queries, synonyms, and meaning-based retrieval.
 
     Use this when the user asks about concepts, ideas, or topics that may be expressed differently in the text.
@@ -27,11 +28,16 @@ async def search_documents(query: str, top_k: int = 4, user_id: str | None = Non
     Args:
         query: The search query string (semantic/conceptual search).
         top_k: Number of relevant chunks to retrieve.
-        user_id: User ID string (auto-injected from context, do not provide manually).
     """
     try:
         vector_store = get_vector_store_service()
-        uid = uuid.UUID(user_id) if user_id else uuid.UUID("00000000-0000-0000-0000-000000000000")
+        # Extract user_id from config (injected by agent framework)
+        if not config or "configurable" not in config:
+            raise ValueError("user_id missing from agent config - config not properly passed")
+        user_id = config["configurable"].get("user_id")
+        if not user_id:
+            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+        uid = uuid.UUID(user_id)
         results = await vector_store.similarity_search(user_id=uid, query=query, top_k=top_k)
 
         if not results:
@@ -51,7 +57,7 @@ async def summarize_document(
     doc_id: str,
     query: str = "Summarize the document",
     model: str = settings.DEFAULT_CHAT_MODEL,
-    user_id: str | None = None
+    config: RunnableConfig | None = None
 ) -> str:
     """Summarize a document given its document ID using the existing summary service.
 
@@ -59,14 +65,20 @@ async def summarize_document(
         doc_id: The UUID or string ID of the document to summarize.
         query: Focus query for summarization.
         model: LLM model name to use.
-        user_id: User ID string (auto-injected from context, do not provide manually).
     """
     try:
         vector_store = get_vector_store_service()
         feature_service = AssistantFeatureService(vector_store)
 
+        # Extract user_id from config (injected by agent framework)
+        if not config or "configurable" not in config:
+            raise ValueError("user_id missing from agent config - config not properly passed")
+        user_id = config["configurable"].get("user_id")
+        if not user_id:
+            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+
         user = User()
-        user.id = uuid.UUID(user_id) if user_id else uuid.UUID("00000000-0000-0000-0000-000000000000")
+        user.id = uuid.UUID(user_id)
 
         res = await feature_service.summarize_documents(
             user=user,
@@ -91,7 +103,7 @@ def answer_general_knowledge(query: str) -> str:
 
 
 @tool
-async def keyword_search(query: str, top_k: int = 4, user_id: str | None = None) -> str:
+async def keyword_search(query: str, top_k: int = 4, config: RunnableConfig | None = None) -> str:
     """Search documents using BM25 keyword search for exact term matching. Best for finding specific words, phrases, or technical terms.
 
     Use this when the user is looking for exact words, specific terminology, names, or precise phrases.
@@ -101,10 +113,15 @@ async def keyword_search(query: str, top_k: int = 4, user_id: str | None = None)
     Args:
         query: The search query string (keyword/term-based search).
         top_k: Number of relevant chunks to retrieve.
-        user_id: User ID string (auto-injected from context, do not provide manually).
     """
     try:
-        uid = uuid.UUID(user_id) if user_id else uuid.UUID("00000000-0000-0000-0000-000000000000")
+        # Extract user_id from config (injected by agent framework)
+        if not config or "configurable" not in config:
+            raise ValueError("user_id missing from agent config - config not properly passed")
+        user_id = config["configurable"].get("user_id")
+        if not user_id:
+            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+        uid = uuid.UUID(user_id)
         bm25_service = get_bm25_service()
         results = bm25_service.search(user_id=uid, query=query, top_k=top_k)
 
@@ -126,7 +143,7 @@ async def flashcard_generator(
     query: str | None = None,
     count: int = 5,
     model: str = settings.DEFAULT_CHAT_MODEL,
-    user_id: str | None = None
+    config: RunnableConfig | None = None
 ) -> str:
     """Generate flashcards from selected documents using the existing flashcard service.
 
@@ -135,10 +152,15 @@ async def flashcard_generator(
         query: Optional focus query for flashcard generation.
         count: Number of flashcards to generate.
         model: LLM model name to use.
-        user_id: User ID string (auto-injected from context, do not provide manually).
     """
     try:
-        uid = uuid.UUID(user_id) if user_id else uuid.UUID("00000000-0000-0000-0000-000000000000")
+        # Extract user_id from config (injected by agent framework)
+        if not config or "configurable" not in config:
+            raise ValueError("user_id missing from agent config - config not properly passed")
+        user_id = config["configurable"].get("user_id")
+        if not user_id:
+            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+        uid = uuid.UUID(user_id)
         
         # Parse and validate document_ids
         doc_ids_list = [doc_id.strip() for doc_id in document_ids.split(",") if doc_id.strip()]
@@ -188,7 +210,7 @@ async def quiz_generator(
     query: str = "Generate a quiz",
     count: int = 5,
     model: str = settings.DEFAULT_CHAT_MODEL,
-    user_id: str | None = None
+    config: RunnableConfig | None = None
 ) -> str:
     """Generate a quiz from selected documents using the existing quiz generation service.
 
@@ -197,10 +219,15 @@ async def quiz_generator(
         query: Quiz topic or focus query.
         count: Number of quiz questions to generate.
         model: LLM model name to use.
-        user_id: User ID string (auto-injected from context, do not provide manually).
     """
     try:
-        uid = uuid.UUID(user_id) if user_id else uuid.UUID("00000000-0000-0000-0000-000000000000")
+        # Extract user_id from config (injected by agent framework)
+        if not config or "configurable" not in config:
+            raise ValueError("user_id missing from agent config - config not properly passed")
+        user_id = config["configurable"].get("user_id")
+        if not user_id:
+            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+        uid = uuid.UUID(user_id)
         
         # Parse and validate document_ids
         doc_ids_list = [doc_id.strip() for doc_id in document_ids.split(",") if doc_id.strip()]
@@ -248,15 +275,20 @@ async def quiz_generator(
 
 
 @tool
-def export_notes(conversation_id: str, user_id: str | None = None) -> str:
+def export_notes(conversation_id: str, config: RunnableConfig | None = None) -> str:
     """Export conversation notes as formatted text using the existing export service.
 
     Args:
         conversation_id: The UUID of the conversation to export.
-        user_id: User ID string (auto-injected from context, do not provide manually).
     """
     try:
-        uid = uuid.UUID(user_id) if user_id else uuid.UUID("00000000-0000-0000-0000-000000000000")
+        # Extract user_id from config (injected by agent framework)
+        if not config or "configurable" not in config:
+            raise ValueError("user_id missing from agent config - config not properly passed")
+        user_id = config["configurable"].get("user_id")
+        if not user_id:
+            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+        uid = uuid.UUID(user_id)
         conv_id = uuid.UUID(conversation_id)
 
         with db_manager.session_factory() as db:
