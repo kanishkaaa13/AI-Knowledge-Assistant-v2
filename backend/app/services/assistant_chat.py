@@ -175,6 +175,22 @@ class AssistantChatService:
         source = "documents" if has_relevant_chunks else "general_knowledge"
         print(f"[THRESHOLD CALIBRATION] Final decision: {source} (has_relevant_chunks={has_relevant_chunks})")
 
+        # Calculate confidence score based on retrieval quality
+        if has_relevant_chunks:
+            avg_score = sum(r.semantic_score for r in search_results) / len(search_results)
+            chunk_bonus = min(len(search_results), 3) * 0.05
+            confidence_score = min(1.0, avg_score + chunk_bonus)
+            
+            if confidence_score >= 0.7:
+                confidence = "high"
+            elif confidence_score >= 0.5:
+                confidence = "medium"
+            else:
+                confidence = "low"
+            print(f"[CONFIDENCE] Score: {confidence_score:.4f}, Level: {confidence}")
+        else:
+            confidence = "none"
+
         if has_relevant_chunks:
             # Format context with explicit source titles, page numbers, and paragraphs for the LLM
             context_sections = []
@@ -199,11 +215,11 @@ class AssistantChatService:
         print(f"[RAG 6] Context being sent to LLM: {context[:500] if context else 'EMPTY'}")
 
         # Send context metadata to frontend with source field
-        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model, 'source': source})}\n\n"
+        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model, 'source': source, 'confidence': confidence})}\n\n"
 
         # ── Step 6: Build prompt exactly as specified ──────────────────────
         if context:
-            prompt = build_rag_prompt(query=query, context=context)
+            prompt = build_rag_prompt(query=query, context=context, confidence=confidence)
         else:
             prompt = (
                 f"Answer from general knowledge with appropriate uncertainty. "
@@ -245,6 +261,44 @@ class AssistantChatService:
             return
 
         final = full_answer.strip() or "I was unable to generate a response. Please try again."
+
+        # Verify answer is supported by retrieved chunks (only for document-based answers)
+        if source == "documents" and context:
+            import time
+            verify_start = time.time()
+            try:
+                verification_prompt = (
+                    f"Verify if the following answer is fully supported by the provided source chunks.\n\n"
+                    f"SOURCE CHUNKS:\n{context}\n\n"
+                    f"ANSWER TO VERIFY:\n{final}\n\n"
+                    f"Reply with exactly one of:\n"
+                    f"- YES (if fully supported)\n"
+                    f"- NO (if contains unsupported claims)\n"
+                    f"- PARTIAL (if some claims supported, some not)\n\n"
+                    f"Include brief reasoning after your decision."
+                )
+                verification_result = await self.ollama_service.generate(prompt=verification_prompt, model=model)
+                verify_time = time.time() - verify_start
+                print(f"[VERIFICATION] Took {verify_time:.2f}s")
+                print(f"[VERIFICATION] Result: {verification_result[:200]}")
+                
+                # Parse verification result
+                verification_upper = verification_result.strip().upper()
+                if "YES" in verification_upper[:10]:
+                    verified = "YES"
+                elif "NO" in verification_upper[:10]:
+                    verified = "NO"
+                elif "PARTIAL" in verification_upper[:10]:
+                    verified = "PARTIAL"
+                else:
+                    verified = "UNKNOWN"
+                
+                reasoning = verification_result.split("\n")[0].strip() if verification_result else ""
+                
+                yield f"data: {json.dumps({'type': 'verification', 'verified': verified, 'reasoning': reasoning, 'latency_ms': int(verify_time * 1000)})}\n\n"
+            except Exception as e:
+                print(f"[VERIFICATION ERROR] {e}")
+                yield f"data: {json.dumps({'type': 'verification', 'verified': 'ERROR', 'reasoning': str(e), 'latency_ms': 0})}\n\n"
 
         # Asynchronously generate context-aware follow-up suggestions
         suggestions = []

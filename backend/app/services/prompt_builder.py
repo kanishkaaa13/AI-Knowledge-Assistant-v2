@@ -89,8 +89,16 @@ Respond with valid JSON array only:"""
 )
 
 
-def build_rag_prompt(*, query: str, context: str) -> str:
-    return GROUNDED_RAG_PROMPT_TEMPLATE.format(query=query, context=context)
+def build_rag_prompt(*, query: str, context: str, confidence: str = "high") -> str:
+    template = GROUNDED_RAG_PROMPT_TEMPLATE
+    
+    if confidence == "low":
+        # Add hedging instruction for low confidence
+        template = ChatPromptTemplate.from_template(
+            template.template + "\n\nIMPORTANT: You have limited supporting evidence. Start your answer with: 'I have limited supporting evidence for this, but based on the documents: '"
+        )
+    
+    return template.format(query=query, context=context)
 
 
 def build_summary_prompt(*, query: str, context: str) -> str:
