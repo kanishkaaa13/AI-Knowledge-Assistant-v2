@@ -79,6 +79,7 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
     agent = build_router_agent()
     # Pass user_id in configurable for tools to access via RunnableConfig
     config = {"configurable": {"user_id": user_id}} if user_id else {}
+    print(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
     logger.info(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
     result = agent.invoke({"messages": [("user", user_query)]}, config=config)
     messages = result.get("messages", [])
