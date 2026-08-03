@@ -122,6 +122,24 @@ export function ChatMessageBubble({
                       <span className="text-muted-foreground">Confidence: {message.confidence}</span>
                     </div>
                   )}
+                  {message.verification && message.verification.verified !== "YES" && (
+                    <div className={`flex items-center gap-2 ${
+                      message.verification.verified === "ERROR" ? "text-red-400" :
+                      message.verification.verified === "NO" ? "text-red-400" :
+                      "text-yellow-400"
+                    }`} title={message.verification.reasoning}>
+                      <span className={`font-bold ${
+                        message.verification.verified === "ERROR" ? "text-red-500" :
+                        message.verification.verified === "NO" ? "text-red-500" :
+                        "text-yellow-500"
+                      }`}>
+                        ⚠
+                      </span>
+                      <span className="text-muted-foreground">
+                        Verification: {message.verification.verified} ({message.verification.latency_ms}ms)
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
               {message.thinkingState.step === 'generating' && (

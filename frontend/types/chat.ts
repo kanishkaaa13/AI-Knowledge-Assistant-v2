@@ -20,6 +20,11 @@ export interface ChatMessage {
   suggestions?: string[];
   source?: "documents" | "general_knowledge";
   confidence?: "high" | "medium" | "low" | "none";
+  verification?: {
+    verified: "YES" | "NO" | "PARTIAL" | "UNKNOWN" | "ERROR";
+    reasoning: string;
+    latency_ms: number;
+  };
   thinkingState?: {
     step: string;
     message: string;

@@ -14,6 +14,7 @@ export interface StreamHandlers {
   onToken?: (token: string) => void;
   onSuggestions?: (prompts: string[]) => void;
   onThinking?: (step: string, message: string, docs?: string[]) => void;
+  onVerification?: (data: { verified: "YES" | "NO" | "PARTIAL" | "UNKNOWN" | "ERROR"; reasoning: string; latency_ms: number }) => void;
   onDone?: (data: any) => void;
   onError?: (message: string) => void;
 }
@@ -89,6 +90,9 @@ export async function streamAssistantChat(
             break;
           case "suggestions":
             handlers.onSuggestions?.(data.prompts ?? []);
+            break;
+          case "verification":
+            handlers.onVerification?.(data);
             break;
           case "done":
             handlers.onDone?.(data);

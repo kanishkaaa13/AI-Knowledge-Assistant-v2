@@ -262,6 +262,44 @@ class AssistantChatService:
 
         final = full_answer.strip() or "I was unable to generate a response. Please try again."
 
+        # Verify answer is supported by retrieved chunks (only for document-based answers)
+        if source == "documents" and context:
+            import time
+            verify_start = time.time()
+            try:
+                verification_prompt = (
+                    f"Verify if the following answer is fully supported by the provided source chunks.\n\n"
+                    f"SOURCE CHUNKS:\n{context}\n\n"
+                    f"ANSWER TO VERIFY:\n{final}\n\n"
+                    f"Reply with exactly one of:\n"
+                    f"- YES (if fully supported)\n"
+                    f"- NO (if contains unsupported claims)\n"
+                    f"- PARTIAL (if some claims supported, some not)\n\n"
+                    f"Include brief reasoning after your decision."
+                )
+                verification_result = await self.ollama_service.generate(prompt=verification_prompt, model=model)
+                verify_time = time.time() - verify_start
+                print(f"[VERIFICATION] Took {verify_time:.2f}s")
+                print(f"[VERIFICATION] Result: {verification_result[:200]}")
+                
+                # Parse verification result
+                verification_upper = verification_result.strip().upper()
+                if "YES" in verification_upper[:10]:
+                    verified = "YES"
+                elif "NO" in verification_upper[:10]:
+                    verified = "NO"
+                elif "PARTIAL" in verification_upper[:10]:
+                    verified = "PARTIAL"
+                else:
+                    verified = "UNKNOWN"
+                
+                reasoning = verification_result.split("\n")[0].strip() if verification_result else ""
+                
+                yield f"data: {json.dumps({'type': 'verification', 'verified': verified, 'reasoning': reasoning, 'latency_ms': int(verify_time * 1000)})}\n\n"
+            except Exception as e:
+                print(f"[VERIFICATION ERROR] {e}")
+                yield f"data: {json.dumps({'type': 'verification', 'verified': 'ERROR', 'reasoning': str(e), 'latency_ms': 0})}\n\n"
+
         # Asynchronously generate context-aware follow-up suggestions
         suggestions = []
         try:

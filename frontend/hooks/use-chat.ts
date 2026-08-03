@@ -600,6 +600,26 @@ export function useChat() {
             onSuggestions(prompts) {
               setLocalSuggestions(prompts);
             },
+            onVerification(data) {
+              updateConversationCache(conversationId!, (current) => {
+                if (!current) return current as any;
+                return {
+                  ...current,
+                  messages: (current.messages ?? []).map((message) =>
+                    message.id !== optimisticAssistantId
+                      ? message
+                      : {
+                          ...message,
+                          verification: {
+                            verified: data.verified,
+                            reasoning: data.reasoning,
+                            latency_ms: data.latency_ms
+                          }
+                        }
+                  )
+                };
+              });
+            },
             onToken(token) {
               updateAssistantMessage((current) => current + token);
             },
