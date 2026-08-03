@@ -11,6 +11,8 @@ import chromadb
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
+from app.services.reranker import get_reranker_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +32,8 @@ class VectorSearchResult:
     semantic_score: float
     # Derived fields (no BM25 yet — keyword score defaults to 0)
     keyword_score: float = field(default=0.0)
+    # Cross-encoder reranking score (0.0 if not reranked)
+    rerank_score: float = field(default=0.0)
 
     @property
     def combined_score(self) -> float:
@@ -256,8 +260,8 @@ class VectorStoreService:
 
             print(f"[QUERY] Filter used: {where_clause}")
 
-            # Clamp n_results to the actual collection size
-            n_results = min(top_k, count)
+            # Fetch more chunks for reranking (always fetch 10 if available)
+            n_results = min(10, count)
 
             try:
                 results = collection.query(
@@ -334,6 +338,11 @@ class VectorStoreService:
                                 
                     filtered_results.append(res)
                 formatted = filtered_results
+
+            # Apply cross-encoder reranking if we have results
+            if formatted:
+                reranker = get_reranker_service()
+                formatted = reranker.rerank(query, formatted, top_k=top_k)
 
             return formatted
 
