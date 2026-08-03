@@ -106,6 +106,22 @@ export function ChatMessageBubble({
                       <span>📄 {typeof message.thinkingState.message === "string" ? message.thinkingState.message : (typeof message.thinkingState.message === "object" ? JSON.stringify(message.thinkingState.message) : String(message.thinkingState.message))}</span>
                     </div>
                   )}
+                  {message.source === "documents" && message.confidence && message.confidence !== "none" && (
+                    <div className={`flex items-center gap-2 ${
+                      message.confidence === "high" ? "text-emerald-400" :
+                      message.confidence === "medium" ? "text-yellow-400" :
+                      "text-red-400"
+                    }`}>
+                      <span className={`font-bold ${
+                        message.confidence === "high" ? "text-emerald-500" :
+                        message.confidence === "medium" ? "text-yellow-500" :
+                        "text-red-500"
+                      }`}>
+                        {message.confidence === "high" ? "●" : message.confidence === "medium" ? "○" : "◐"}
+                      </span>
+                      <span className="text-muted-foreground">Confidence: {message.confidence}</span>
+                    </div>
+                  )}
                 </div>
               )}
               {message.thinkingState.step === 'generating' && (

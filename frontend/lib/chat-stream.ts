@@ -10,7 +10,7 @@ export interface StreamPayload {
 }
 
 export interface StreamHandlers {
-  onContext?: (data: { context: string; chunks: any[]; model: string; source?: "documents" | "general_knowledge" }) => void;
+  onContext?: (data: { context: string; chunks: any[]; model: string; source?: "documents" | "general_knowledge"; confidence?: "high" | "medium" | "low" | "none" }) => void;
   onToken?: (token: string) => void;
   onSuggestions?: (prompts: string[]) => void;
   onThinking?: (step: string, message: string, docs?: string[]) => void;

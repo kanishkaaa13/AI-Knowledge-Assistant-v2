@@ -590,7 +590,8 @@ export function useChat() {
                       : {
                           ...message,
                           citations: citations,
-                          source: data.source || "documents"
+                          source: data.source || "documents",
+                          confidence: data.confidence || "high"
                         }
                   )
                 };

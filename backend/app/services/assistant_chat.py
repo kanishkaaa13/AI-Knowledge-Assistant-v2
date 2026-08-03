@@ -175,6 +175,22 @@ class AssistantChatService:
         source = "documents" if has_relevant_chunks else "general_knowledge"
         print(f"[THRESHOLD CALIBRATION] Final decision: {source} (has_relevant_chunks={has_relevant_chunks})")
 
+        # Calculate confidence score based on retrieval quality
+        if has_relevant_chunks:
+            avg_score = sum(r.semantic_score for r in search_results) / len(search_results)
+            chunk_bonus = min(len(search_results), 3) * 0.05
+            confidence_score = min(1.0, avg_score + chunk_bonus)
+            
+            if confidence_score >= 0.7:
+                confidence = "high"
+            elif confidence_score >= 0.5:
+                confidence = "medium"
+            else:
+                confidence = "low"
+            print(f"[CONFIDENCE] Score: {confidence_score:.4f}, Level: {confidence}")
+        else:
+            confidence = "none"
+
         if has_relevant_chunks:
             # Format context with explicit source titles, page numbers, and paragraphs for the LLM
             context_sections = []
@@ -199,11 +215,11 @@ class AssistantChatService:
         print(f"[RAG 6] Context being sent to LLM: {context[:500] if context else 'EMPTY'}")
 
         # Send context metadata to frontend with source field
-        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model, 'source': source})}\n\n"
+        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model, 'source': source, 'confidence': confidence})}\n\n"
 
         # ── Step 6: Build prompt exactly as specified ──────────────────────
         if context:
-            prompt = build_rag_prompt(query=query, context=context)
+            prompt = build_rag_prompt(query=query, context=context, confidence=confidence)
         else:
             prompt = (
                 f"Answer from general knowledge with appropriate uncertainty. "

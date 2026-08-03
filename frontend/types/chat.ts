@@ -19,6 +19,7 @@ export interface ChatMessage {
   citations?: Citation[];
   suggestions?: string[];
   source?: "documents" | "general_knowledge";
+  confidence?: "high" | "medium" | "low" | "none";
   thinkingState?: {
     step: string;
     message: string;
