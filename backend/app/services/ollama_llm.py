@@ -235,6 +235,7 @@ class OllamaLLMService:
 
     async def _ollama_generate(self, prompt: str, model: str, temperature: float | None = None) -> str:
         import os
+        import time
 
         base_url = os.environ.get("OLLAMA_BASE_URL", settings.OLLAMA_BASE_URL).rstrip("/")
         resolved_model = await self._resolve_model(model, base_url)
@@ -249,6 +250,9 @@ class OllamaLLMService:
         if temperature is not None:
             payload["options"] = {"temperature": temperature}
         
+        start_time = time.time()
+        logger.info("[TIMING] Ollama request sent at %.3f", start_time)
+        
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(600.0, connect=10.0)
         ) as client:
@@ -257,10 +261,13 @@ class OllamaLLMService:
                 json=payload,
             )
             resp.raise_for_status()
+            end_time = time.time()
+            logger.info("[TIMING] Ollama response received at %.3f (duration: %.3f seconds)", end_time, end_time - start_time)
             return resp.json()["response"]
 
     async def _ollama_stream(self, prompt: str, model: str, temperature: float | None = None) -> AsyncIterator[str]:
         import os
+        import time
 
         base_url = os.environ.get("OLLAMA_BASE_URL", settings.OLLAMA_BASE_URL).rstrip("/")
         resolved_model = await self._resolve_model(model, base_url)
@@ -275,6 +282,10 @@ class OllamaLLMService:
         if temperature is not None:
             payload["options"] = {"temperature": temperature}
         
+        start_time = time.time()
+        logger.info("[TIMING] Ollama stream request sent at %.3f", start_time)
+        first_token_time = None
+        
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(600.0, connect=10.0)
         ) as client:
@@ -283,11 +294,7 @@ class OllamaLLMService:
                 f"{base_url}/api/generate",
                 json=payload,
             ) as response:
-                if response.status_code != 200:
-                    body = await response.aread()
-                    raise RuntimeError(
-                        f"Ollama returned {response.status_code}: {body.decode()}"
-                    )
+                response.raise_for_status()
                 async for line in response.aiter_lines():
                     line = line.strip()
                     if not line:
@@ -298,6 +305,9 @@ class OllamaLLMService:
                         continue
                     token = chunk.get("response", "")
                     if token:
+                        if first_token_time is None:
+                            first_token_time = time.time()
+                            logger.info("[TIMING] First token received at %.3f (time to first token: %.3f seconds)", first_token_time, first_token_time - start_time)
                         yield token
                     if chunk.get("done", False):
                         break

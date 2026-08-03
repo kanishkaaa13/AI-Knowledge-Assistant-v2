@@ -5,6 +5,7 @@ import uuid
 
 from langchain_core.tools import tool
 
+from app.core.config import settings
 from app.models.user import User
 from app.services.assistant_features import AssistantFeatureService
 from app.services.vector_store import get_vector_store_service
@@ -43,7 +44,7 @@ async def summarize_document(
     doc_id: str,
     user_id: str | None = None,
     query: str = "Summarize the document",
-    model: str = "llama3.2",
+    model: str = settings.DEFAULT_CHAT_MODEL,
 ) -> str:
     """Summarize a document given its document ID using the existing summary service.
 

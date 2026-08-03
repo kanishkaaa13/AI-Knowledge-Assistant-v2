@@ -35,7 +35,7 @@ def get_agent_llm() -> ChatOpenAI:
         return ChatOpenAI(
             api_key="ollama",
             base_url=base_url,
-            model=settings.DEFAULT_CHAT_MODEL or settings.LLM_MODEL_NAME,
+            model=settings.DEFAULT_CHAT_MODEL,
             temperature=0,
         )
 

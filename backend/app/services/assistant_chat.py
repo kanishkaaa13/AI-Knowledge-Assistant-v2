@@ -166,8 +166,14 @@ class AssistantChatService:
 
         # Check if results are empty OR all below similarity threshold
         SIMILARITY_THRESHOLD = 0.3
+        print(f"[THRESHOLD CALIBRATION] Threshold: {SIMILARITY_THRESHOLD}")
+        print(f"[THRESHOLD CALIBRATION] Retrieved {len(search_results)} chunks")
+        if search_results:
+            for i, r in enumerate(search_results):
+                print(f"[THRESHOLD CALIBRATION] Chunk {i+1}: score={r.semantic_score:.4f} (threshold check: {'PASS' if r.semantic_score >= SIMILARITY_THRESHOLD else 'FAIL'})")
         has_relevant_chunks = search_results and any(r.semantic_score >= SIMILARITY_THRESHOLD for r in search_results)
         source = "documents" if has_relevant_chunks else "general_knowledge"
+        print(f"[THRESHOLD CALIBRATION] Final decision: {source} (has_relevant_chunks={has_relevant_chunks})")
 
         if has_relevant_chunks:
             # Format context with explicit source titles, page numbers, and paragraphs for the LLM

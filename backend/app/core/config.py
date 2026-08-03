@@ -51,12 +51,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     USE_OPENAI: bool = False
-    # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
-    LLM_MODEL_NAME: str = "llama3.2:3b"
+    # Aligned with DEFAULT_CHAT_MODEL for consistency
+    LLM_MODEL_NAME: str = "qwen2.5:3b-instruct"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_DEFAULT_MODEL: str = "qwen2.5:3b-instruct"
     OLLAMA_KEEP_ALIVE: str = "5m"
     ENFORCE_LOCAL_ONLY_AI: bool = False
     BACKEND_CORS_ORIGINS: list[str] = [
