@@ -116,14 +116,18 @@ async def keyword_search(query: str, top_k: int = 4, config: RunnableConfig | No
     """
     try:
         # Extract user_id from config (injected by agent framework)
+        logger.info(f"[keyword_search] Config received: {config}")
         if not config or "configurable" not in config:
             raise ValueError("user_id missing from agent config - config not properly passed")
         user_id = config["configurable"].get("user_id")
+        logger.info(f"[keyword_search] Extracted user_id from config: {user_id}")
         if not user_id:
             raise ValueError("user_id missing from agent config - user_id not set in configurable")
         uid = uuid.UUID(user_id)
+        logger.info(f"[keyword_search] UUID parsed: {uid}")
         bm25_service = get_bm25_service()
         results = bm25_service.search(user_id=uid, query=query, top_k=top_k)
+        logger.info(f"[keyword_search] BM25 search returned {len(results) if results else 0} results for user {uid}")
 
         if not results:
             return "No relevant document chunks found via keyword search."
