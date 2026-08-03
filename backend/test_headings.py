@@ -48,7 +48,7 @@ def detect_sections(text: str, file_type: str = ".pdf") -> list[tuple[str, int, 
     
     return sections
 
-# Test on actual Unit-3.pdf
+# Test on actual Unit-3.pdf (file has hyphen, DB has space)
 unit3_pdf = Path('storage/uploads/2f9c2a2c-2dac-4596-b117-6b2cffe01425/1ca098903c93137b-Unit-3.pdf')
 ml_cheatsheet = Path('storage/uploads/2f9c2a2c-2dac-4596-b117-6b2cffe01425/58623835d9e8cb00-machine-learning-cheat-sheet.pdf')
 
