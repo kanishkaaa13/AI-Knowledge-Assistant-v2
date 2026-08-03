@@ -95,10 +95,17 @@ export function ChatMessageBubble({
                     <span className="text-emerald-500 font-bold">✓</span>
                     <span className="text-muted-foreground">Searched documents</span>
                   </div>
-                  <div className="flex items-center gap-2 text-indigo-400">
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-                    <span>📄 {typeof message.thinkingState.message === "string" ? message.thinkingState.message : (typeof message.thinkingState.message === "object" ? JSON.stringify(message.thinkingState.message) : String(message.thinkingState.message))}</span>
-                  </div>
+                  {message.source === "general_knowledge" ? (
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <span className="text-amber-500 font-bold">⚠</span>
+                      <span className="text-muted-foreground">No match found — answering from general knowledge</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-indigo-400">
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
+                      <span>📄 {typeof message.thinkingState.message === "string" ? message.thinkingState.message : (typeof message.thinkingState.message === "object" ? JSON.stringify(message.thinkingState.message) : String(message.thinkingState.message))}</span>
+                    </div>
+                  )}
                 </div>
               )}
               {message.thinkingState.step === 'generating' && (

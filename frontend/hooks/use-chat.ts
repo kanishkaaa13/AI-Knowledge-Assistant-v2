@@ -589,7 +589,8 @@ export function useChat() {
                       ? message
                       : {
                           ...message,
-                          citations: citations
+                          citations: citations,
+                          source: data.source || "documents"
                         }
                   )
                 };

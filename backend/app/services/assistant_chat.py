@@ -164,7 +164,12 @@ class AssistantChatService:
             print(traceback.format_exc())
             search_results = []
 
-        if search_results:
+        # Check if results are empty OR all below similarity threshold
+        SIMILARITY_THRESHOLD = 0.3
+        has_relevant_chunks = search_results and any(r.semantic_score >= SIMILARITY_THRESHOLD for r in search_results)
+        source = "documents" if has_relevant_chunks else "general_knowledge"
+
+        if has_relevant_chunks:
             # Format context with explicit source titles, page numbers, and paragraphs for the LLM
             context_sections = []
             doc_names = []
@@ -181,13 +186,14 @@ class AssistantChatService:
             doc_display = doc_names[0] if doc_names else "documents"
             yield f"data: {json.dumps({'type': 'thinking', 'step': 'reading', 'message': f'Reading {doc_display}...', 'docs': doc_names})}\n\n"
         else:
-            yield f"data: {json.dumps({'type': 'thinking', 'step': 'reading', 'message': 'Analyzing general database...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'thinking', 'step': 'reading', 'message': 'No relevant documents found — answering from general knowledge'})}\n\n"
 
         print(f"[RAG 4] ChromaDB raw results: {[{'id': r.id, 'score': r.semantic_score, 'meta': r.metadata} for r in search_results]}")
+        print(f"[RAG 5] Source: {source}")
         print(f"[RAG 6] Context being sent to LLM: {context[:500] if context else 'EMPTY'}")
 
-        # Send context metadata to frontend
-        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model})}\n\n"
+        # Send context metadata to frontend with source field
+        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model, 'source': source})}\n\n"
 
         # ── Step 6: Build prompt exactly as specified ──────────────────────
         if context:

@@ -26,15 +26,49 @@ export function PDFViewerPanel({ documentId, filename, initialPage = 1, highligh
   const [scale, setScale] = React.useState(1.0);
   const [rotation, setRotation] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [fileUrl, setFileUrl] = React.useState<string | null>(null);
 
   // Clean filename to remove path/prefix if any
   const cleanFilename = React.useMemo(() => {
     return filename.split("/").pop() ?? filename;
   }, [filename]);
 
-  const fileUrl = React.useMemo(() => {
-    // Use the new document file endpoint
-    return `${env.NEXT_PUBLIC_API_BASE_URL}/documents/${documentId}/file`;
+  // Fetch PDF with authentication and create blob URL
+  React.useEffect(() => {
+    let objectUrl: string | null = null;
+
+    async function fetchPdf() {
+      try {
+        setIsLoading(true);
+        const apiUrl = `${env.NEXT_PUBLIC_API_BASE_URL}/documents/${documentId}/file`;
+        const response = await fetch(apiUrl, {
+          credentials: "include",
+          headers: {
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem("access_token") : ""}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        objectUrl = URL.createObjectURL(blob);
+        setFileUrl(objectUrl);
+      } catch (error) {
+        console.error("Error fetching PDF:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchPdf();
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
   }, [documentId]);
 
   React.useEffect(() => {
@@ -159,7 +193,7 @@ export function PDFViewerPanel({ documentId, filename, initialPage = 1, highligh
         )}
 
         <Document
-          file={fileUrl}
+          file={fileUrl || undefined}
           onLoadSuccess={onDocumentLoadSuccess}
           loading={null}
           className="shadow-lg border border-border/20 rounded-xl overflow-hidden bg-white"
