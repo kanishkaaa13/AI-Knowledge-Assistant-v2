@@ -55,4 +55,5 @@ async def run_agent_endpoint(
         query=safe_query,
         answer=result.get("answer", ""),
         tools_called=result.get("tools_called", []),
+        reasoning_steps=result.get("reasoning_steps", []),
     )

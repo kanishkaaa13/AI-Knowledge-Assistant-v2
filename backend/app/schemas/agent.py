@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -17,6 +18,10 @@ class AgentRunResponse(BaseModel):
     tools_called: list[str] = Field(
         default_factory=list,
         description="Names of LangChain tools invoked by the agent during this run.",
+    )
+    reasoning_steps: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Detailed ReAct reasoning steps including tool calls and outputs.",
     )
 
 

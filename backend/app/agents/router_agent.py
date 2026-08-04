@@ -95,6 +95,7 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
         agent = build_router_agent()
         # Pass user_id in configurable for tools to access via RunnableConfig
         config = {"configurable": {"user_id": user_id}} if user_id else {}
+        config["recursion_limit"] = 10  # Max 10 reasoning steps
         print(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
         logger.info(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
         result = agent.invoke({"messages": [("user", user_query)]}, config=config)
@@ -102,20 +103,43 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
 
         tools_called: list[str] = []
         final_answer: str = ""
+        reasoning_steps: list[dict[str, Any]] = []
+
+        # Log each reasoning step for debugging/demo
+        print(f"[run_agent] Processing {len(messages)} messages from agent execution")
+        logger.info(f"[run_agent] Processing {len(messages)} messages from agent execution")
 
         for msg in messages:
-            # Capture tools requested in tool_calls
+            # Log AI reasoning steps
+            if getattr(msg, "type", "") == "ai" or msg.__class__.__name__ == "AIMessage":
+                if hasattr(msg, "content") and msg.content:
+                    content_str = msg.content if isinstance(msg.content, str) else str(msg.content)
+                    print(f"[ReAct Step] AI Reasoning: {content_str[:200]}...")
+                    logger.info(f"[ReAct Step] AI Reasoning: {content_str[:200]}...")
+                    reasoning_steps.append({"type": "reasoning", "content": content_str})
+            
+            # Log tool calls with reasoning
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tc in msg.tool_calls:
                     name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", None)
                     if name and name not in tools_called:
                         tools_called.append(name)
+                    # Log which tool was called and why (from arguments)
+                    args = tc.get("args", {}) if isinstance(tc, dict) else getattr(tc, "args", {})
+                    print(f"[ReAct Step] Tool Called: {name} with args: {args}")
+                    logger.info(f"[ReAct Step] Tool Called: {name} with args: {args}")
+                    reasoning_steps.append({"type": "tool_call", "tool": name, "args": args})
 
             # Capture tool output message names
             if getattr(msg, "type", "") == "tool" or msg.__class__.__name__ == "ToolMessage":
                 name = getattr(msg, "name", None)
                 if name and name not in tools_called:
                     tools_called.append(name)
+                # Log what was observed from tool output
+                tool_content = getattr(msg, "content", "")
+                print(f"[ReAct Step] Tool Output ({name}): {str(tool_content)[:200]}...")
+                logger.info(f"[ReAct Step] Tool Output ({name}): {str(tool_content)[:200]}...")
+                reasoning_steps.append({"type": "tool_output", "tool": name, "output": str(tool_content)})
 
             # Capture final AI text response
             if getattr(msg, "type", "") == "ai" or msg.__class__.__name__ == "AIMessage":
@@ -133,6 +157,7 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
             "answer": final_answer,
             "tools_called": tools_called,
             "raw_messages": messages,
+            "reasoning_steps": reasoning_steps,
         }
     finally:
         # Reset ContextVar to prevent cross-request contamination
