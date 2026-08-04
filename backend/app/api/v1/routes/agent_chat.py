@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -42,7 +43,8 @@ async def agent_chat(
         # Late import avoids circular dependency at module-load time
         from app.agents.router_agent import run_agent
 
-        result = await run_agent(user_query=safe_query)
+        # Run blocking agent call in thread pool to avoid blocking event loop
+        result = await asyncio.to_thread(run_agent, user_query=safe_query)
     except Exception as exc:
         logger.exception("Agent chat failed for user %s: %s", current_user.id, exc)
         raise HTTPException(

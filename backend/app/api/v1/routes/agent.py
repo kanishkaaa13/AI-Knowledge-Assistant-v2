@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -41,7 +42,8 @@ async def run_agent_endpoint(
         # Import here to avoid circular import at module load time
         from app.agents.router_agent import run_agent
 
-        result = await run_agent(user_query=safe_query, user_id=str(current_user.id))
+        # Run blocking agent call in thread pool to avoid blocking event loop
+        result = await asyncio.to_thread(run_agent, user_query=safe_query, user_id=str(current_user.id))
     except Exception as exc:
         logger.exception("Agent execution failed for user %s: %s", current_user.id, exc)
         raise HTTPException(
