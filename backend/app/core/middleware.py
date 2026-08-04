@@ -64,7 +64,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         elif "/documents/upload" in path:
             limit = settings.RATE_LIMIT_UPLOAD_MAX_REQUESTS
 
-        apply_rate_limit(
+        await apply_rate_limit(
             request,
             scope=path,
             limit=limit,

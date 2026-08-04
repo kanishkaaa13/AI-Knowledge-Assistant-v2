@@ -23,7 +23,7 @@ router = APIRouter()
 
 
 @router.get("", response_model=list[ConversationListItem])
-def list_conversations(
+async def list_conversations(
     request: Request,
     search: str | None = Query(default=None, min_length=1, max_length=255),
     is_favorite: bool | None = Query(default=None),
@@ -32,7 +32,7 @@ def list_conversations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ConversationListItem]:
-    apply_rate_limit(request, scope="conversations-list", limit=60, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="conversations-list", limit=60, user_id=str(current_user.id))
     safe_search = sanitize_text(search, max_length=255) if search else None
     return ChatMemoryService(db).list_conversations(
         user=current_user,
@@ -44,13 +44,13 @@ def list_conversations(
 
 
 @router.post("", response_model=ConversationDetail, status_code=status.HTTP_201_CREATED)
-def create_conversation(
+async def create_conversation(
     request: Request,
     payload: ConversationCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConversationDetail:
-    apply_rate_limit(request, scope="conversations-create", limit=30, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="conversations-create", limit=30, user_id=str(current_user.id))
     return ChatMemoryService(db).create_conversation(
         user=current_user,
         title=sanitize_text(payload.title, max_length=255) if payload.title else None,
@@ -73,14 +73,14 @@ def get_conversation(
 
 
 @router.patch("/{conversation_id}", response_model=ConversationListItem)
-def rename_conversation(
+async def rename_conversation(
     request: Request,
     conversation_id: uuid.UUID,
     payload: ConversationRename,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConversationListItem:
-    apply_rate_limit(request, scope="conversations-rename", limit=20, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="conversations-rename", limit=20, user_id=str(current_user.id))
     return ChatMemoryService(db).rename_conversation(
         user=current_user,
         conversation_id=conversation_id,
@@ -129,13 +129,13 @@ def export_conversation(
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_200_OK)
-def delete_conversation(
+async def delete_conversation(
     request: Request,
     conversation_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    apply_rate_limit(request, scope="conversations-delete", limit=20, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="conversations-delete", limit=20, user_id=str(current_user.id))
     ChatMemoryService(db).delete_conversation(
         user=current_user,
         conversation_id=conversation_id,

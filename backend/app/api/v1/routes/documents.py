@@ -91,7 +91,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UploadedDocumentRead:
-    apply_rate_limit(
+    await apply_rate_limit(
         request,
         scope="documents-upload",
         limit=5,

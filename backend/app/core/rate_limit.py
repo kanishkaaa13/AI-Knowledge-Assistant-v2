@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import threading
+import asyncio
 import time
 from collections import deque
 
@@ -12,13 +12,13 @@ from app.core.config import settings
 class InMemoryRateLimiter:
     def __init__(self) -> None:
         self._buckets: dict[str, deque[float]] = {}
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
-    def check(self, key: str, *, limit: int, window_seconds: int) -> None:
+    async def check(self, key: str, *, limit: int, window_seconds: int) -> None:
         now = time.time()
         cutoff = now - window_seconds
 
-        with self._lock:
+        async with self._lock:
             bucket = self._buckets.setdefault(key, deque())
             while bucket and bucket[0] <= cutoff:
                 bucket.popleft()
@@ -44,7 +44,7 @@ def client_identifier(request: Request) -> str:
     return "unknown"
 
 
-def apply_rate_limit(
+async def apply_rate_limit(
     request: Request,
     *,
     scope: str,
@@ -53,7 +53,7 @@ def apply_rate_limit(
 ) -> None:
     identity = user_id or client_identifier(request)
     key = f"{scope}:{identity}"
-    rate_limiter.check(
+    await rate_limiter.check(
         key,
         limit=limit,
         window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,

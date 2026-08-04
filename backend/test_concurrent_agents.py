@@ -86,23 +86,78 @@ async def main():
     print("CONCURRENCY TEST - Two users, simultaneous requests")
     print("=" * 80)
     
-    # Create two users with different queries - use simpler queries for faster execution
-    user1_task = run_agent_for_user(
-        "concurrent1@example.com",
-        "password123",
-        "User One",
-        "find the term 'test' in my documents"
-    )
+    # Pre-login both users to get tokens before starting concurrent requests
+    print("Pre-login both users...")
     
-    user2_task = run_agent_for_user(
-        "concurrent2@example.com", 
-        "password456",
-        "User Two",
-        "find the term 'data' in my documents"
-    )
+    user1_token = None
+    user2_token = None
+    user1_id = None
+    user2_id = None
     
-    # Run concurrently
-    print("\nStarting concurrent requests...\n")
+    # Login User One
+    login_url = f"{BASE_URL}/api/v1/auth/login"
+    response = requests.post(login_url, json={"email": "concurrent1@example.com", "password": "password123"})
+    if response.status_code == 200:
+        token_data = response.json()
+        user1_token = token_data.get("access_token")
+        user1_id = token_data["user"]["id"]
+        print(f"User One logged in: {user1_id}")
+    
+    # Login User Two
+    response = requests.post(login_url, json={"email": "concurrent2@example.com", "password": "password456"})
+    if response.status_code == 200:
+        token_data = response.json()
+        user2_token = token_data.get("access_token")
+        user2_id = token_data["user"]["id"]
+        print(f"User Two logged in: {user2_id}")
+    
+    if not user1_token or not user2_token:
+        print("Failed to login users")
+        return
+    
+    # Now fire both agent requests concurrently using asyncio.gather
+    async def call_agent_for_user(token, user_id, user_name, query):
+        """Call agent endpoint for a user."""
+        agent_url = f"{BASE_URL}/api/v1/agent/run"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        agent_data = {"query": query}
+        
+        print(f"[{user_name}] Calling agent/run at {time.time()}")
+        start_time = time.time()
+        
+        # Use async HTTP client for true async calls
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.post(agent_url, json=agent_data, headers=headers, timeout=120) as response:
+                elapsed = time.time() - start_time
+                print(f"[{user_name}] Agent response: {response.status} (took {elapsed:.2f}s)")
+                
+                if response.status == 200:
+                    result = await response.json()
+                    return {
+                        "user": user_name,
+                        "user_id": user_id,
+                        "tools_called": result.get("tools_called", []),
+                        "answer": result.get("answer", "")[:200],
+                        "elapsed": elapsed
+                    }
+                else:
+                    text = await response.text()
+                    return {
+                        "user": user_name,
+                        "error": text,
+                        "elapsed": elapsed
+                    }
+    
+    # Create async tasks for both users
+    user1_task = call_agent_for_user(user1_token, user1_id, "User One", "find the term 'test' in my documents")
+    user2_task = call_agent_for_user(user2_token, user2_id, "User Two", "find the term 'data' in my documents")
+    
+    # Run concurrently with asyncio.gather
+    print("\nStarting CONCURRENT requests with asyncio.gather...\n")
     start_time = time.time()
     
     results = await asyncio.gather(user1_task, user2_task)

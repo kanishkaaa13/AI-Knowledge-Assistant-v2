@@ -31,7 +31,7 @@ async def agent_chat(
     ``tool_used`` reports the **first** (primary) tool the agent invoked.
     If no tool was called, ``tool_used`` is an empty string.
     """
-    apply_rate_limit(request, scope="agent-chat", limit=15, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="agent-chat", limit=15, user_id=str(current_user.id))
 
     safe_query = ensure_present(
         sanitize_text(payload.query, max_length=4000),
@@ -42,7 +42,7 @@ async def agent_chat(
         # Late import avoids circular dependency at module-load time
         from app.agents.router_agent import run_agent
 
-        result = run_agent(user_query=safe_query)
+        result = await run_agent(user_query=safe_query)
     except Exception as exc:
         logger.exception("Agent chat failed for user %s: %s", current_user.id, exc)
         raise HTTPException(

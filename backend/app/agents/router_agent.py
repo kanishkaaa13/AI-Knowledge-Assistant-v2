@@ -67,7 +67,7 @@ def build_router_agent():
     return create_react_agent(llm, tools)
 
 
-def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
+async def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
     """Execute the router agent for a user query and return the answer and called tools.
 
     Args:
@@ -96,7 +96,7 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
         config = {"configurable": {"user_id": user_id}} if user_id else {}
         print(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
         logger.info(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
-        result = agent.invoke({"messages": [("user", user_query)]}, config=config)
+        result = await agent.ainvoke({"messages": [("user", user_query)]}, config=config)
         messages = result.get("messages", [])
 
         tools_called: list[str] = []

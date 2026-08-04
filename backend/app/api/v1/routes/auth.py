@@ -43,7 +43,7 @@ async def register(
     Raises:
         HTTPException: If registration fails due to validation or existing email
     """
-    apply_rate_limit(request, scope="auth-register", limit=5)
+    await apply_rate_limit(request, scope="auth-register", limit=5)
     payload.name = ensure_present(sanitize_text(payload.name, max_length=255), field_name="name")
     payload.email = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
 
@@ -101,7 +101,7 @@ async def login(
     Raises:
         HTTPException: If authentication fails due to invalid credentials
     """
-    apply_rate_limit(request, scope="auth-login", limit=8)
+    await apply_rate_limit(request, scope="auth-login", limit=8)
     email_clean = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
     
     try:

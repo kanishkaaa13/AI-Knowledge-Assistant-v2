@@ -43,7 +43,7 @@ def _sanitized_document_ids(document_ids: list[str]) -> list[str]:
     return [item for item in document_ids if item]
 
 
-def check_chat_rate_limit(user_id: str, limit: int = 20, window_seconds: int = 300) -> None:
+async def check_chat_rate_limit(user_id: str, limit: int = 20, window_seconds: int = 300) -> None:
     import time
     from collections import deque
     from fastapi import HTTPException
@@ -52,7 +52,7 @@ def check_chat_rate_limit(user_id: str, limit: int = 20, window_seconds: int = 3
     now = time.time()
     cutoff = now - window_seconds
 
-    with rate_limiter._lock:
+    async with rate_limiter._lock:
         bucket = rate_limiter._buckets.setdefault(key, deque())
         while bucket and bucket[0] <= cutoff:
             bucket.popleft()
@@ -94,7 +94,7 @@ async def get_analytics_overview(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AnalyticsOverview:
-    apply_rate_limit(request, scope="assistant-analytics", limit=40, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-analytics", limit=40, user_id=str(current_user.id))
     return AnalyticsService(
         DocumentRepository(db),
         ConversationRepository(db),
@@ -109,7 +109,7 @@ async def retrieve_context(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RetrievalResponse:
-    apply_rate_limit(request, scope="assistant-retrieve", limit=30, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-retrieve", limit=30, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     # retrieve() is now async — await it
     return await RAGRetrievalService(db).retrieve(
@@ -387,7 +387,7 @@ async def summarize_documents(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AssistantSummaryResponse:
-    apply_rate_limit(request, scope="assistant-summaries", limit=20, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-summaries", limit=20, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     result = await AssistantFeatureService(get_vector_store_service()).summarize_documents(
         user=current_user,
@@ -405,7 +405,7 @@ async def generate_quiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AssistantQuizResponse:
-    apply_rate_limit(request, scope="assistant-quiz", limit=20, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-quiz", limit=20, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     result = await AssistantFeatureService(get_vector_store_service()).generate_quiz(
         user=current_user,
@@ -423,7 +423,7 @@ async def suggested_prompts(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SuggestedPromptsResponse:
-    apply_rate_limit(request, scope="assistant-suggested-prompts", limit=60, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-suggested-prompts", limit=60, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     result = await AssistantFeatureService(get_vector_store_service()).suggested_prompts(
         user=current_user,
@@ -441,7 +441,7 @@ async def semantic_document_search(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SemanticDocumentSearchResponse:
-    apply_rate_limit(request, scope="assistant-document-search", limit=30, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-document-search", limit=30, user_id=str(current_user.id))
     safe_query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
 
     vector_store = get_vector_store_service()
@@ -493,7 +493,7 @@ async def generate_study_notes(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StudyNotesResponse:
-    apply_rate_limit(request, scope="assistant-study-notes", limit=20, user_id=str(current_user.id))
+    await apply_rate_limit(request, scope="assistant-study-notes", limit=20, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     result = await AssistantFeatureService(get_vector_store_service()).generate_study_notes(
         user=current_user,
