@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 import logging
 from typing import Any
 
@@ -18,6 +19,9 @@ from app.agents.tools import (
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# ContextVar for user_id (async-safe, isolated per request/task)
+_current_user_id: contextvars.ContextVar[str | None] = contextvars.ContextVar('current_user_id', default=None)
 
 
 def get_agent_llm() -> ChatOpenAI:
@@ -76,45 +80,66 @@ def run_agent(user_query: str, user_id: str | None = None) -> dict[str, Any]:
             - 'tools_called': list[str] (names of tools invoked during processing)
             - 'raw_messages': list (full conversation messages output)
     """
-    agent = build_router_agent()
-    # Pass user_id in configurable for tools to access via RunnableConfig
-    config = {"configurable": {"user_id": user_id}} if user_id else {}
-    print(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
-    logger.info(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
-    result = agent.invoke({"messages": [("user", user_query)]}, config=config)
-    messages = result.get("messages", [])
+    # Set user_id in ContextVar for tools to access (async-safe, isolated per request/task)
+    import time
+    request_start = time.time()
+    timestamp = time.strftime('%H:%M:%S', time.localtime(request_start))
+    print(f"[run_agent] {timestamp} Request START for user_id: {user_id}")
+    logger.info(f"[run_agent] {timestamp} Request START for user_id: {user_id}")
+    token = _current_user_id.set(user_id)
+    print(f"[run_agent] {timestamp} ContextVar SET for user_id: {user_id}")
+    logger.info(f"[run_agent] {timestamp} ContextVar SET for user_id: {user_id}")
+    
+    try:
+        agent = build_router_agent()
+        # Pass user_id in configurable for tools to access via RunnableConfig
+        config = {"configurable": {"user_id": user_id}} if user_id else {}
+        print(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
+        logger.info(f"[run_agent] Building config with user_id: {user_id}, config dict: {config}")
+        result = agent.invoke({"messages": [("user", user_query)]}, config=config)
+        messages = result.get("messages", [])
 
-    tools_called: list[str] = []
-    final_answer: str = ""
+        tools_called: list[str] = []
+        final_answer: str = ""
 
-    for msg in messages:
-        # Capture tools requested in tool_calls
-        if hasattr(msg, "tool_calls") and msg.tool_calls:
-            for tc in msg.tool_calls:
-                name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", None)
+        for msg in messages:
+            # Capture tools requested in tool_calls
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", None)
+                    if name and name not in tools_called:
+                        tools_called.append(name)
+
+            # Capture tool output message names
+            if getattr(msg, "type", "") == "tool" or msg.__class__.__name__ == "ToolMessage":
+                name = getattr(msg, "name", None)
                 if name and name not in tools_called:
                     tools_called.append(name)
 
-        # Capture tool output message names
-        if getattr(msg, "type", "") == "tool" or msg.__class__.__name__ == "ToolMessage":
-            name = getattr(msg, "name", None)
-            if name and name not in tools_called:
-                tools_called.append(name)
+            # Capture final AI text response
+            if getattr(msg, "type", "") == "ai" or msg.__class__.__name__ == "AIMessage":
+                if hasattr(msg, "content") and msg.content:
+                    if isinstance(msg.content, str):
+                        final_answer = msg.content
+                    elif isinstance(msg.content, list):
+                        text_parts = [
+                            item.get("text", "") if isinstance(item, dict) else str(item)
+                            for item in msg.content
+                        ]
+                        final_answer = "".join(text_parts)
 
-        # Capture final AI text response
-        if getattr(msg, "type", "") == "ai" or msg.__class__.__name__ == "AIMessage":
-            if hasattr(msg, "content") and msg.content:
-                if isinstance(msg.content, str):
-                    final_answer = msg.content
-                elif isinstance(msg.content, list):
-                    text_parts = [
-                        item.get("text", "") if isinstance(item, dict) else str(item)
-                        for item in msg.content
-                    ]
-                    final_answer = "".join(text_parts)
-
-    return {
-        "answer": final_answer,
-        "tools_called": tools_called,
-        "raw_messages": messages,
-    }
+        return {
+            "answer": final_answer,
+            "tools_called": tools_called,
+            "raw_messages": messages,
+        }
+    finally:
+        # Reset ContextVar to prevent cross-request contamination
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[run_agent] {timestamp} ContextVar RESET for user_id: {user_id}")
+        logger.info(f"[run_agent] {timestamp} ContextVar RESET for user_id: {user_id}")
+        _current_user_id.reset(token)
+        elapsed = time.time() - request_start
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[run_agent] {timestamp} Request END for user_id: {user_id} (elapsed: {elapsed:.3f}s)")
+        logger.info(f"[run_agent] {timestamp} Request END for user_id: {user_id} (elapsed: {elapsed:.3f}s)")

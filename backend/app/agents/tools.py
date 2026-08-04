@@ -29,6 +29,10 @@ async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | 
         query: The search query string (semantic/conceptual search).
         top_k: Number of relevant chunks to retrieve.
     """
+    import time
+    timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+    print(f"[search_documents] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
+    logger.info(f"[search_documents] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
     try:
         vector_store = get_vector_store_service()
         # Extract user_id from config (injected by agent framework)
@@ -38,16 +42,25 @@ async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | 
         if not user_id:
             raise ValueError("user_id missing from agent config - user_id not set in configurable")
         uid = uuid.UUID(user_id)
+        print(f"[search_documents] {timestamp} Extracted user_id from config: {user_id}")
+        logger.info(f"[search_documents] {timestamp} Extracted user_id from config: {user_id}")
         results = await vector_store.similarity_search(user_id=uid, query=query, top_k=top_k)
 
         if not results:
+            print(f"[search_documents] {timestamp} FUNCTION EXIT - no results")
             return "No relevant document chunks found."
 
         formatted_chunks = []
         for idx, res in enumerate(results, 1):
             formatted_chunks.append(f"[{idx}] (ID: {res.id})\n{res.document}")
-        return "\n\n".join(formatted_chunks)
+        result = "\n\n".join(formatted_chunks)
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[search_documents] {timestamp} FUNCTION EXIT returning {len(results)} results")
+        logger.info(f"[search_documents] {timestamp} FUNCTION EXIT returning {len(results)} results")
+        return result
     except Exception as e:
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[search_documents] {timestamp} ERROR: {e}")
         logger.exception("Error in search_documents tool: %s", e)
         return f"Error executing document search: {e}"
 
@@ -103,7 +116,7 @@ def answer_general_knowledge(query: str) -> str:
 
 
 @tool
-async def keyword_search(query: str, top_k: int = 4, config: RunnableConfig | None = None) -> str:
+def keyword_search(query: str, top_k: int = 4) -> str:
     """Search documents using BM25 keyword search for exact term matching. Best for finding specific words, phrases, or technical terms.
 
     Use this when the user is looking for exact words, specific terminology, names, or precise phrases.
@@ -114,17 +127,22 @@ async def keyword_search(query: str, top_k: int = 4, config: RunnableConfig | No
         query: The search query string (keyword/term-based search).
         top_k: Number of relevant chunks to retrieve.
     """
+    import time
+    timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+    print(f"[keyword_search] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
+    logger.info(f"[keyword_search] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
     try:
-        # Extract user_id from config (injected by agent framework)
-        print(f"[keyword_search] Config received: {config}")
-        logger.info(f"[keyword_search] Config received: {config}")
-        if not config or "configurable" not in config:
-            raise ValueError("user_id missing from agent config - config not properly passed")
-        user_id = config["configurable"].get("user_id")
-        print(f"[keyword_search] Extracted user_id from config: {user_id}")
-        logger.info(f"[keyword_search] Extracted user_id from config: {user_id}")
+        # Get user_id from ContextVar (async-safe, isolated per request/task)
+        import contextvars
+        from app.agents.router_agent import _current_user_id
+        
+        user_id = _current_user_id.get()
+        print(f"[keyword_search] {timestamp} Extracted user_id from ContextVar: {user_id}")
+        logger.info(f"[keyword_search] {timestamp} Extracted user_id from ContextVar: {user_id}")
+        
         if not user_id:
-            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+            raise ValueError("user_id missing from ContextVar - agent not properly configured")
+        
         uid = uuid.UUID(user_id)
         print(f"[keyword_search] UUID parsed: {uid}")
         logger.info(f"[keyword_search] UUID parsed: {uid}")
@@ -139,10 +157,16 @@ async def keyword_search(query: str, top_k: int = 4, config: RunnableConfig | No
         formatted_chunks = []
         for idx, (chunk_id, score) in enumerate(results, 1):
             formatted_chunks.append(f"[{idx}] Chunk ID: {chunk_id}, BM25 Score: {score:.4f}")
-        return "\n\n".join(formatted_chunks)
+        result = "\n\n".join(formatted_chunks)
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[keyword_search] {timestamp} FUNCTION EXIT returning {len(results)} results")
+        logger.info(f"[keyword_search] {timestamp} FUNCTION EXIT returning {len(results)} results")
+        return result
     except Exception as e:
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[keyword_search] {timestamp} ERROR: {e}")
         logger.exception("Error in keyword_search tool: %s", e)
-        return f"Error executing keyword search: {e}"
+        return f"Error in keyword_search: {str(e)}"
 
 
 @tool
