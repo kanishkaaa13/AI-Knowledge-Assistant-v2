@@ -25,6 +25,10 @@ async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | 
     Use this when the user asks about concepts, ideas, or topics that may be expressed differently in the text.
     This uses ChromaDB vector embeddings to find semantically similar content even if exact words don't match.
 
+    IMPORTANT: If this tool returns a message stating "No documents found" or "No valid document ID is available", 
+    you MUST NOT call summarize_document. Only call summarize_document when you have extracted a valid UUID 
+    document_id from the search results.
+
     Args:
         query: The search query string (semantic/conceptual search). This must be a non-empty string containing the actual search terms from the user's request. Do not pass empty strings or placeholder text.
         top_k: Number of relevant chunks to retrieve. A value between 1 and 10 is recommended.
@@ -63,8 +67,11 @@ async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | 
 
         formatted_chunks = []
         for idx, res in enumerate(results, 1):
-            formatted_chunks.append(f"[{idx}] Document ID: {res.id}\n{res.document}")
-        result = "\n\n".join(formatted_chunks)
+            # Extract document_id from res.id (format may include chunk index)
+            doc_id = res.id.split(":")[0] if ":" in str(res.id) else str(res.id)
+            formatted_chunks.append(f"Document ID: {doc_id}\n\nContent:\n{res.document}")
+        result = "\n\n---\n\n".join(formatted_chunks)
+        result = f"Found {len(results)} document(s).\n\n" + result
         timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
         print(f"[search_documents] {timestamp} FUNCTION EXIT returning {len(results)} results")
         logger.info(f"[search_documents] {timestamp} FUNCTION EXIT returning {len(results)} results")
@@ -86,7 +93,7 @@ async def summarize_document(
     """Summarize a document given its document ID using the existing summary service.
 
     Args:
-        doc_id: The UUID string of the document to summarize. This must be a valid UUID like '550e8400-e29b-41d4-a716-446655440000'. You must extract this from the actual search results - do not use placeholder text or descriptions. If the search results show chunk IDs but not document IDs, ask the user to provide the specific document UUID they want summarized.
+        doc_id: The UUID string of the document to summarize. Example format: 'd7af0871-9595-4da5-9e9b-bbdcce675e9a'. You must extract this exact UUID from the search_documents tool output. The search output shows "Document ID: UUID" - copy the UUID value exactly. Do NOT use placeholder text like 'extracted document ID' or descriptions.
         query: A specific focus question or topic to guide the summarization. For example: 'What are the key findings about machine learning?' or 'Summarize the methodology section.'
         model: The specific LLM model to use for summarization. Use the exact model name string like 'llama3.1', 'mistral', or 'gpt-4'. Do not use placeholder text.
     """
@@ -180,7 +187,7 @@ async def keyword_search(query: str, top_k: int = 4) -> str:
         logger.info(f"[keyword_search] BM25 search returned {len(results) if results else 0} results for user {uid}")
 
         if not results:
-            return "No relevant document chunks found via keyword search."
+            return "No documents found matching the keyword search query. No valid document ID is available. Do not attempt to call summarize_document without a valid doc_id from a successful search."
 
         formatted_chunks = []
         for idx, (chunk_id, score) in enumerate(results, 1):
