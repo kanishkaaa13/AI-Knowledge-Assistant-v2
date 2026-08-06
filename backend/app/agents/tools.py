@@ -26,33 +26,44 @@ async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | 
     This uses ChromaDB vector embeddings to find semantically similar content even if exact words don't match.
 
     Args:
-        query: The search query string (semantic/conceptual search).
-        top_k: Number of relevant chunks to retrieve.
+        query: The search query string (semantic/conceptual search). This must be a non-empty string containing the actual search terms from the user's request. Do not pass empty strings or placeholder text.
+        top_k: Number of relevant chunks to retrieve. A value between 1 and 10 is recommended.
     """
     import time
     timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
     print(f"[search_documents] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
     logger.info(f"[search_documents] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
+    
+    # Validate query is not empty
+    if not query or not query.strip():
+        return "Error: Search query cannot be empty. Please provide a meaningful search term."
+    
     try:
-        vector_store = get_vector_store_service()
-        # Extract user_id from config (injected by agent framework)
-        if not config or "configurable" not in config:
-            raise ValueError("user_id missing from agent config - config not properly passed")
-        user_id = config["configurable"].get("user_id")
+        # Get user_id from ContextVar (async-safe, isolated per request/task)
+        import contextvars
+        from app.agents.router_agent import _current_user_id
+        
+        user_id = _current_user_id.get()
+        print(f"[search_documents] {timestamp} Extracted user_id from ContextVar: {user_id}")
+        logger.info(f"[search_documents] {timestamp} Extracted user_id from ContextVar: {user_id}")
+        
         if not user_id:
-            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+            raise ValueError("user_id missing from ContextVar - agent not properly configured")
+        
         uid = uuid.UUID(user_id)
-        print(f"[search_documents] {timestamp} Extracted user_id from config: {user_id}")
-        logger.info(f"[search_documents] {timestamp} Extracted user_id from config: {user_id}")
+        print(f"[search_documents] UUID parsed: {uid}")
+        logger.info(f"[search_documents] UUID parsed: {uid}")
+        
+        vector_store = get_vector_store_service()
         results = await vector_store.similarity_search(user_id=uid, query=query, top_k=top_k)
 
         if not results:
             print(f"[search_documents] {timestamp} FUNCTION EXIT - no results")
-            return "No relevant document chunks found."
+            return "No documents found matching the search query. No valid document ID is available. Do not attempt to call summarize_document without a valid doc_id from a successful search."
 
         formatted_chunks = []
         for idx, res in enumerate(results, 1):
-            formatted_chunks.append(f"[{idx}] (ID: {res.id})\n{res.document}")
+            formatted_chunks.append(f"[{idx}] Document ID: {res.id}\n{res.document}")
         result = "\n\n".join(formatted_chunks)
         timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
         print(f"[search_documents] {timestamp} FUNCTION EXIT returning {len(results)} results")
@@ -205,12 +216,13 @@ async def flashcard_generator(
         model: LLM model name to use.
     """
     try:
-        # Extract user_id from config (injected by agent framework)
-        if not config or "configurable" not in config:
-            raise ValueError("user_id missing from agent config - config not properly passed")
-        user_id = config["configurable"].get("user_id")
+        # Get user_id from ContextVar (async-safe, isolated per request/task)
+        import contextvars
+        from app.agents.router_agent import _current_user_id
+        
+        user_id = _current_user_id.get()
         if not user_id:
-            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+            raise ValueError("user_id missing from ContextVar - agent not properly configured")
         uid = uuid.UUID(user_id)
         
         # Parse and validate document_ids
@@ -272,12 +284,13 @@ async def quiz_generator(
         model: LLM model name to use.
     """
     try:
-        # Extract user_id from config (injected by agent framework)
-        if not config or "configurable" not in config:
-            raise ValueError("user_id missing from agent config - config not properly passed")
-        user_id = config["configurable"].get("user_id")
+        # Get user_id from ContextVar (async-safe, isolated per request/task)
+        import contextvars
+        from app.agents.router_agent import _current_user_id
+        
+        user_id = _current_user_id.get()
         if not user_id:
-            raise ValueError("user_id missing from agent config - user_id not set in configurable")
+            raise ValueError("user_id missing from ContextVar - agent not properly configured")
         uid = uuid.UUID(user_id)
         
         # Parse and validate document_ids
