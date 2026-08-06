@@ -25,8 +25,10 @@ SUMMARY_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
 
 Rules:
 - Summarize only what appears in the context.
-- If the context is weak or empty, say "Unknown based on the provided context."
 - Organize the response with short bullets.
+- Include as many key points as the content supports - do not force a fixed number of bullets.
+- If the context is weak or empty, simply state that the provided context is insufficient to generate a meaningful summary.
+- Do NOT use phrases like "Unknown based on the provided context" as bullet points.
 
 Focus request:
 {query}

@@ -48,8 +48,16 @@ class AssistantFeatureService:
         prompt = build_summary_prompt(query=query, context=context)
         summary = await self.ollama.generate(prompt=prompt, model=model)
         
+        # Filter out "unknown" or "not found" style lines from summary
+        summary_lines = summary.strip().split('\n')
+        filtered_lines = [
+            line for line in summary_lines
+            if not any(phrase in line.lower() for phrase in ['unknown based on', 'not found in context', 'insufficient to generate'])
+        ]
+        filtered_summary = '\n'.join(filtered_lines).strip() or "I was unable to generate a response. Please try again."
+        
         return {
-            "summary": summary.strip() or "I was unable to generate a response. Please try again.",
+            "summary": filtered_summary,
             "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
             "context": context,
         }
