@@ -75,23 +75,35 @@ async def summarize_document(
     """Summarize a document given its document ID using the existing summary service.
 
     Args:
-        doc_id: The UUID or string ID of the document to summarize.
-        query: Focus query for summarization.
-        model: LLM model name to use.
+        doc_id: The UUID string of the document to summarize. This must be a valid UUID like '550e8400-e29b-41d4-a716-446655440000'. You must extract this from the actual search results - do not use placeholder text or descriptions. If the search results show chunk IDs but not document IDs, ask the user to provide the specific document UUID they want summarized.
+        query: A specific focus question or topic to guide the summarization. For example: 'What are the key findings about machine learning?' or 'Summarize the methodology section.'
+        model: The specific LLM model to use for summarization. Use the exact model name string like 'llama3.1', 'mistral', or 'gpt-4'. Do not use placeholder text.
     """
+    import time
+    timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+    print(f"[summarize_document] {timestamp} FUNCTION CALLED with doc_id={doc_id}, query={query}")
+    logger.info(f"[summarize_document] {timestamp} FUNCTION CALLED with doc_id={doc_id}, query={query}")
     try:
+        # Get user_id from ContextVar (async-safe, isolated per request/task)
+        import contextvars
+        from app.agents.router_agent import _current_user_id
+        
+        user_id = _current_user_id.get()
+        print(f"[summarize_document] {timestamp} Extracted user_id from ContextVar: {user_id}")
+        logger.info(f"[summarize_document] {timestamp} Extracted user_id from ContextVar: {user_id}")
+        
+        if not user_id:
+            raise ValueError("user_id missing from ContextVar - agent not properly configured")
+        
+        uid = uuid.UUID(user_id)
+        print(f"[summarize_document] UUID parsed: {uid}")
+        logger.info(f"[summarize_document] UUID parsed: {uid}")
+        
         vector_store = get_vector_store_service()
         feature_service = AssistantFeatureService(vector_store)
 
-        # Extract user_id from config (injected by agent framework)
-        if not config or "configurable" not in config:
-            raise ValueError("user_id missing from agent config - config not properly passed")
-        user_id = config["configurable"].get("user_id")
-        if not user_id:
-            raise ValueError("user_id missing from agent config - user_id not set in configurable")
-
         user = User()
-        user.id = uuid.UUID(user_id)
+        user.id = uid
 
         res = await feature_service.summarize_documents(
             user=user,
@@ -99,8 +111,13 @@ async def summarize_document(
             model=model,
             document_ids=[doc_id],
         )
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[summarize_document] {timestamp} FUNCTION EXIT returning summary")
+        logger.info(f"[summarize_document] {timestamp} FUNCTION EXIT returning summary")
         return res.get("summary", "Unable to generate summary for the specified document.")
     except Exception as e:
+        timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
+        print(f"[summarize_document] {timestamp} ERROR: {e}")
         logger.exception("Error in summarize_document tool: %s", e)
         return f"Error executing document summarization: {e}"
 
@@ -116,7 +133,7 @@ def answer_general_knowledge(query: str) -> str:
 
 
 @tool
-def keyword_search(query: str, top_k: int = 4) -> str:
+async def keyword_search(query: str, top_k: int = 4) -> str:
     """Search documents using BM25 keyword search for exact term matching. Best for finding specific words, phrases, or technical terms.
 
     Use this when the user is looking for exact words, specific terminology, names, or precise phrases.
@@ -124,8 +141,8 @@ def keyword_search(query: str, top_k: int = 4) -> str:
     Unlike semantic search, this requires exact word matches and is better for precise term lookup.
 
     Args:
-        query: The search query string (keyword/term-based search).
-        top_k: Number of relevant chunks to retrieve.
+        query: The search query string (keyword/term-based search). Use exact words or phrases you want to find in the documents.
+        top_k: Number of relevant chunks to retrieve. A value between 1 and 10 is recommended.
     """
     import time
     timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
@@ -156,7 +173,9 @@ def keyword_search(query: str, top_k: int = 4) -> str:
 
         formatted_chunks = []
         for idx, (chunk_id, score) in enumerate(results, 1):
-            formatted_chunks.append(f"[{idx}] Chunk ID: {chunk_id}, BM25 Score: {score:.4f}")
+            # Extract document_id from chunk_id (format: "document_id:chunk_index")
+            doc_id = chunk_id.split(":")[0] if ":" in chunk_id else chunk_id
+            formatted_chunks.append(f"[{idx}] Document ID: {doc_id}, Chunk ID: {chunk_id}, BM25 Score: {score:.4f}")
         result = "\n\n".join(formatted_chunks)
         timestamp = time.strftime('%H:%M:%S', time.localtime(time.time()))
         print(f"[keyword_search] {timestamp} FUNCTION EXIT returning {len(results)} results")
