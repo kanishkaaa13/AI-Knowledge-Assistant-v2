@@ -248,9 +248,9 @@ async def main() -> None:
         results.append(result)
         
         if result.get("error"):
-            print(f"  ✗ Error: {result['error']}")
+            print(f"  [ERR] Error: {result['error']}")
         else:
-            print(f"  ✓ Retrieved {len(result['retrieved_chunks'])} chunks, "
+            print(f"  [OK] Retrieved {len(result['retrieved_chunks'])} chunks, "
                   f"citations: {result['citations_present']}, "
                   f"latency: {result['latency_ms']:.0f}ms")
     

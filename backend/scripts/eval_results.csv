@@ -1,27 +1,10 @@
 question_id,question,expected_answer,source_document,retrieved_chunks_summary,num_chunks_retrieved,generated_answer,citations_present,latency_ms,error
-q1,What is machine learning?,A definition or explanation of machine learning as introduced in the document.,test_document.txt,,0,"I couldn't find this in your documents, but based on general knowledge: Machine learning is a subfield of artificial intelligence (AI) that involves training algorithms to learn from data without being explicitly programmed. It's a type of AI that enables computers to improve their performance on a task over time by learning from experience and adapting to new information.
+q1,What is machine learning?,A definition or explanation of machine learning as introduced in the document.,test_document.txt,machine-learning-cheat-sheet.pdf:page1; machine-learning-cheat-sheet.pdf:page1; machine-learning-cheat-sheet.pdf:page1; machine-learning-cheat-sheet.pdf:page1,4,"Machine learning is not explicitly defined in the provided document context, but it can be inferred that machine learning refers to a broader field that encompasses various concepts and techniques presented in the cheat sheet.
 
-Machine learning is often used in applications such as image recognition, natural language processing, speech recognition, and predictive analytics. The goal of machine learning is to develop algorithms that can make decisions or predictions based on patterns and relationships found in the data, without being explicitly programmed with rules or logic.
+However, according to the document [Source: machine-learning-cheat-sheet.pdf, Page 1], ""Types of machine learning"" are mentioned as one of the topics covered in the introduction. This suggests that machine learning is likely an umbrella term that includes different types or approaches within the field.
 
-There are several types of machine learning, including:
+I couldn't find this information in the selected documents.",True,111952.09,
+q2,What industries or fields does the document mention as applications of AI or machine learning?,"Should mention healthcare, finance, technology, and transportation based on the indexed content.",test_document.txt,machine-learning-cheat-sheet.pdf:page1; machine-learning-cheat-sheet.pdf:page1; machine-learning-cheat-sheet.pdf:page1; Unit 4.pdf:page1,4,"The document does not explicitly mention specific industries or fields that apply AI or machine learning. However, it provides a general overview of machine learning concepts and classical equations, which can be applied to various domains.
 
-* Supervised learning: This type of machine learning involves training an algorithm on labeled data, where the correct output is provided for each input. The algorithm learns to map inputs to outputs based on the labeled data.
-* Unsupervised learning: This type of machine learning involves training an algorithm on unlabeled data, and the algorithm must find patterns or relationships in the data without knowing what the correct output should be.
-* Reinforcement learning: This type of machine learning involves training an algorithm through trial and error, where the algorithm learns to make decisions by receiving rewards or penalties for its actions.
-
-Machine learning has many applications in various fields, including healthcare, finance, marketing, and more. It's a rapidly growing field with many exciting developments and opportunities!",False,69255.06,
-q2,What industries or fields does the document mention as applications of AI or machine learning?,"Should mention healthcare, finance, technology, and transportation based on the indexed content.",test_document.txt,,0,"I couldn't find this information in your documents, but based on general knowledge: Artificial Intelligence (AI) and Machine Learning (ML) have numerous applications across various industries. Some of the most prominent ones include:
-
-1. **Healthcare**: AI-powered diagnostic tools, personalized medicine, medical imaging analysis, and patient data management.
-2. **Finance**: Predictive analytics for risk assessment, portfolio optimization, fraud detection, and customer service chatbots.
-3. **Manufacturing**: Quality control, predictive maintenance, supply chain optimization, and automated production processes.
-4. **Retail**: Personalized product recommendations, demand forecasting, inventory management, and customer service automation.
-5. **Transportation**: Autonomous vehicles, route optimization, traffic prediction, and logistics management.
-6. **Education**: Intelligent tutoring systems, adaptive learning platforms, student performance analysis, and personalized learning pathways.
-7. **Customer Service**: Chatbots, virtual assistants, sentiment analysis, and automated customer support.
-8. **Security**: Anomaly detection, threat intelligence, intrusion detection, and cybersecurity incident response.
-9. **Marketing**: Predictive analytics for targeting, customer segmentation, A/B testing, and marketing automation.
-10. **Research**: Data analysis, scientific discovery, and research collaboration platforms.
-
-These are just a few examples of the many industries and fields that leverage AI and Machine Learning. If you'd like to explore more specific applications or have any follow-up questions, feel free to ask!",False,49279.58,
-q3,What is the capital of Australia?,Not found in the document — this tests whether the model correctly declines rather than hallucinating.,N/A (out-of-scope test),,0,"I couldn't find this information in your documents, but based on general knowledge: The capital of Australia is Canberra!",False,7156.63,
+I couldn't find this information in the selected documents.",False,58233.69,
+q3,What is the capital of Australia?,Not found in the document — this tests whether the model correctly declines rather than hallucinating.,N/A (out-of-scope test),machine-learning-cheat-sheet.pdf:page1; agentic_ai_wenup_prep.md:page1; machine-learning-cheat-sheet.pdf:page1; PM UNIT 3 BY VP  (1).pdf:page1,4,I was unable to generate a response. Please try again.,False,33125.34,

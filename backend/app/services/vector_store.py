@@ -384,6 +384,7 @@ class VectorStoreService:
         from app.models.document_chunk import DocumentChunk
         from app.models.uploaded_document import UploadedDocument
         from sqlalchemy import select
+        from sqlalchemy.orm import joinedload
         
         bm25_chunk_data = {}
         if bm25_results:
@@ -394,7 +395,9 @@ class VectorStoreService:
                         doc_id, chunk_idx = chunk_id.split(":", 1)
                         try:
                             chunk = session.scalar(
-                                select(DocumentChunk).where(
+                                select(DocumentChunk)
+                                .options(joinedload(DocumentChunk.document))
+                                .where(
                                     DocumentChunk.document_id == uuid.UUID(doc_id),
                                     DocumentChunk.chunk_index == int(chunk_idx)
                                 )
