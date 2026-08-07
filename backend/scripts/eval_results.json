@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "timestamp": "2026-08-07T19:24:58.932071",
+    "user_email": "kanishkaarde90@gmail.com",
+    "user_id": "2f9c2a2c-2dac-4596-b117-6b2cffe01425",
+    "model": "llama3:latest",
+    "top_k": 4,
+    "total_questions": 3
+  },
+  "results": [
+    {
+      "question_id": "q1",
+      "question": "What is machine learning?",
+      "expected_answer": "A definition or explanation of machine learning as introduced in the document.",
+      "source_document": "test_document.txt",
+      "retrieved_chunks": [],
+      "generated_answer": "I couldn't find this in your documents, but based on general knowledge: Machine learning is a subfield of artificial intelligence (AI) that involves training algorithms to learn from data without being explicitly programmed. It's a type of AI that enables computers to improve their performance on a task over time by learning from experience and adapting to new information.\n\nMachine learning is often used in applications such as image recognition, natural language processing, speech recognition, and predictive analytics. The goal of machine learning is to develop algorithms that can make decisions or predictions based on patterns and relationships found in the data, without being explicitly programmed with rules or logic.\n\nThere are several types of machine learning, including:\n\n* Supervised learning: This type of machine learning involves training an algorithm on labeled data, where the correct output is provided for each input. The algorithm learns to map inputs to outputs based on the labeled data.\n* Unsupervised learning: This type of machine learning involves training an algorithm on unlabeled data, and the algorithm must find patterns or relationships in the data without knowing what the correct output should be.\n* Reinforcement learning: This type of machine learning involves training an algorithm through trial and error, where the algorithm learns to make decisions by receiving rewards or penalties for its actions.\n\nMachine learning has many applications in various fields, including healthcare, finance, marketing, and more. It's a rapidly growing field with many exciting developments and opportunities!",
+      "citations_present": false,
+      "latency_ms": 69255.06,
+      "error": null
+    },
+    {
+      "question_id": "q2",
+      "question": "What industries or fields does the document mention as applications of AI or machine learning?",
+      "expected_answer": "Should mention healthcare, finance, technology, and transportation based on the indexed content.",
+      "source_document": "test_document.txt",
+      "retrieved_chunks": [],
+      "generated_answer": "I couldn't find this information in your documents, but based on general knowledge: Artificial Intelligence (AI) and Machine Learning (ML) have numerous applications across various industries. Some of the most prominent ones include:\n\n1. **Healthcare**: AI-powered diagnostic tools, personalized medicine, medical imaging analysis, and patient data management.\n2. **Finance**: Predictive analytics for risk assessment, portfolio optimization, fraud detection, and customer service chatbots.\n3. **Manufacturing**: Quality control, predictive maintenance, supply chain optimization, and automated production processes.\n4. **Retail**: Personalized product recommendations, demand forecasting, inventory management, and customer service automation.\n5. **Transportation**: Autonomous vehicles, route optimization, traffic prediction, and logistics management.\n6. **Education**: Intelligent tutoring systems, adaptive learning platforms, student performance analysis, and personalized learning pathways.\n7. **Customer Service**: Chatbots, virtual assistants, sentiment analysis, and automated customer support.\n8. **Security**: Anomaly detection, threat intelligence, intrusion detection, and cybersecurity incident response.\n9. **Marketing**: Predictive analytics for targeting, customer segmentation, A/B testing, and marketing automation.\n10. **Research**: Data analysis, scientific discovery, and research collaboration platforms.\n\nThese are just a few examples of the many industries and fields that leverage AI and Machine Learning. If you'd like to explore more specific applications or have any follow-up questions, feel free to ask!",
+      "citations_present": false,
+      "latency_ms": 49279.58,
+      "error": null
+    },
+    {
+      "question_id": "q3",
+      "question": "What is the capital of Australia?",
+      "expected_answer": "Not found in the document — this tests whether the model correctly declines rather than hallucinating.",
+      "source_document": "N/A (out-of-scope test)",
+      "retrieved_chunks": [],
+      "generated_answer": "I couldn't find this information in your documents, but based on general knowledge: The capital of Australia is Canberra!",
+      "citations_present": false,
+      "latency_ms": 7156.63,
+      "error": null
+    }
+  ]
+}

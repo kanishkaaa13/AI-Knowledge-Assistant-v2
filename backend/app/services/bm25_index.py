@@ -34,7 +34,7 @@ class BM25IndexService:
                 return
             
             # Get all chunks for these documents
-            document_ids = [str(doc.id) for doc in documents]
+            document_ids = [doc.id for doc in documents]
             chunks = db.query(DocumentChunk).filter(
                 DocumentChunk.document_id.in_(document_ids)
             ).order_by(DocumentChunk.chunk_index).all()

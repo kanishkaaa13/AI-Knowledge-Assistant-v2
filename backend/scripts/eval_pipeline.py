@@ -36,8 +36,8 @@ SCRIPT_DIR = Path(__file__).parent
 TEST_QUESTIONS_FILE = SCRIPT_DIR / "test_questions.json"
 RESULTS_JSON_FILE = SCRIPT_DIR / "eval_results.json"
 RESULTS_CSV_FILE = SCRIPT_DIR / "eval_results.csv"
-USER_EMAIL = "concurrent1@example.com"  # Default test user
-MODEL = "llama3.1"
+USER_EMAIL = "kanishkaarde90@gmail.com"  # Target user with indexed documents
+MODEL = "llama3:latest"
 TOP_K = 4
 
 
@@ -71,7 +71,7 @@ def extract_chunk_info(chunk: dict[str, Any]) -> dict[str, Any]:
         chunk: Chunk dict with 'content' and 'metadata' keys
         
     Returns:
-        Dict with chunk_text, source_document, page_number, similarity_score
+        Dict with chunk_text, source_document, page_number, similarity_score_unavailable
     """
     metadata = chunk.get("metadata", {})
     
@@ -79,7 +79,7 @@ def extract_chunk_info(chunk: dict[str, Any]) -> dict[str, Any]:
         "chunk_text": chunk.get("content", ""),
         "source_document": metadata.get("filename", "Unknown"),
         "page_number": metadata.get("page"),
-        "similarity_score": metadata.get("combined_score"),  # May be None depending on search type
+        "similarity_score_unavailable": "not_exposed_by_pipeline",
     }
 
 
