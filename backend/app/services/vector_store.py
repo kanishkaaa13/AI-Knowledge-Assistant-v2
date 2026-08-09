@@ -11,6 +11,7 @@ import chromadb
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
+from app.core.config import settings
 from app.services.reranker import get_reranker_service
 from app.services.bm25_index import get_bm25_service
 
@@ -52,9 +53,11 @@ class VectorStoreService:
 
     def __init__(
         self,
-        persist_directory: str = "storage/chromadb",
+        persist_directory: str | None = None,
         model_name: str = "all-MiniLM-L6-v2",
     ) -> None:
+        if persist_directory is None:
+            persist_directory = settings.CHROMA_PERSIST_DIRECTORY
         persist_path = Path(persist_directory)
         persist_path.mkdir(parents=True, exist_ok=True)
 

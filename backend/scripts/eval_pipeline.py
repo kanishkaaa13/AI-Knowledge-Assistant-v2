@@ -6,6 +6,7 @@ This script runs test questions through the existing RAG pipeline and logs raw r
 for manual quality assessment. It does NOT modify any production pipeline logic.
 
 Usage:
+    cd backend
     python scripts/eval_pipeline.py
 
 Requirements:
@@ -18,10 +19,14 @@ import asyncio
 import csv
 import json
 import re
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session
 
@@ -36,8 +41,8 @@ SCRIPT_DIR = Path(__file__).parent
 TEST_QUESTIONS_FILE = SCRIPT_DIR / "test_questions.json"
 RESULTS_JSON_FILE = SCRIPT_DIR / "eval_results.json"
 RESULTS_CSV_FILE = SCRIPT_DIR / "eval_results.csv"
-USER_EMAIL = "kanishkaarde90@gmail.com"  # Target user with indexed documents
-MODEL = "llama3:latest"
+USER_EMAIL = "kanishkaarde90@gmail.com"  # Target user 2f9c2a2c with indexed documents
+MODEL = "llama3.1"
 TOP_K = 4
 
 

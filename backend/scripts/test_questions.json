@@ -1,20 +1,20 @@
 [
     {
         "id": "q1",
-        "question": "What is machine learning?",
-        "expected_answer": "A definition or explanation of machine learning as introduced in the document.",
-        "source_document": "test_document.txt"
+        "question": "What are the key components of project risk management?",
+        "expected_answer": "Should cover risk identification, analysis, and reduction strategies from the PM UNIT documents.",
+        "source_document": "PM UNIT 3 BY VP (1).pdf"
     },
     {
         "id": "q2",
-        "question": "What industries or fields does the document mention as applications of AI or machine learning?",
-        "expected_answer": "Should mention healthcare, finance, technology, and transportation based on the indexed content.",
-        "source_document": "test_document.txt"
+        "question": "What is agentic AI and how does it differ from traditional AI?",
+        "expected_answer": "Should explain the concept of agentic AI from the agentic_ai_wenup_prep document.",
+        "source_document": "agentic_ai_wenup_prep.md"
     },
     {
         "id": "q3",
-        "question": "What is the capital of Australia?",
-        "expected_answer": "Not found in the document — this tests whether the model correctly declines rather than hallucinating.",
-        "source_document": "N/A (out-of-scope test)"
+        "question": "What are the steps in risk management?",
+        "expected_answer": "Should list the specific steps mentioned in the PM UNIT 5 document.",
+        "source_document": "PM UNIT 5 BY VP.pdf"
     }
 ]

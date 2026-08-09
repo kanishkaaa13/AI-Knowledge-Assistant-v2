@@ -1,119 +1,119 @@
 {
   "metadata": {
-    "timestamp": "2026-08-07T20:10:08.155554",
+    "timestamp": "2026-08-09T20:31:57.577301",
     "user_email": "kanishkaarde90@gmail.com",
     "user_id": "2f9c2a2c-2dac-4596-b117-6b2cffe01425",
-    "model": "llama3:latest",
+    "model": "llama3.1",
     "top_k": 4,
     "total_questions": 3
   },
   "results": [
     {
       "question_id": "q1",
-      "question": "What is machine learning?",
-      "expected_answer": "A definition or explanation of machine learning as introduced in the document.",
-      "source_document": "test_document.txt",
+      "question": "What are the key components of project risk management?",
+      "expected_answer": "Should cover risk identification, analysis, and reduction strategies from the PM UNIT documents.",
+      "source_document": "PM UNIT 3 BY VP (1).pdf",
       "retrieved_chunks": [
         {
-          "chunk_text": "Preface\nThis cheat sheet is a condensed version of machine learning manual, which contains many classical equations and\ndiagrams on machine learning, and aims to help you quickly recall knowledge and ideas in machine learning.\nThis cheat sheet has two signiﬁcant advantages:\n1. Clearer symbols. Mathematical formulas use quite a lot of confusing symbols. For example, X can be a set, a random",
-          "source_document": "machine-learning-cheat-sheet.pdf",
+          "chunk_text": "important decisions of project management is the form of organizational structure that will be \nused for the project. \n \nEach project has its unique characteristics and the design of an organizational structure should \nconsider the organizational  environment, the project characteristics in which it will operate,  \nand \nthe level of authority the project manager is given. A project structure  can take on various \nforms with each form having its own advantages and disadvantages.",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
           "page_number": "1",
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         },
         {
-          "chunk_text": "Contents\nContents . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . v\nNotation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ix\n1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1\n1.1 Types of machine learning . . . . . . . . . . . . 1\n1.2 Three elements of a machine learning\nmodel . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1\n1.2.1 Representation . . . . . . . . . . . . . . 1",
-          "source_document": "machine-learning-cheat-sheet.pdf",
+          "chunk_text": "Project Management                                                                                           Milind P Gajare  \n3.1 Introduction \nA project organization is a structure that facilitates the coordination  and implementation of \nproject activities. Its main reason is to create  an environment that fosters interactions among \nthe team members with a minimum amount of disruptions, overlaps and conflict. One of  the",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
           "page_number": "1",
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         },
         {
-          "chunk_text": "Discovering graph structure\nMatrix completion\n1.2 Three elements of a machine learning\nmodel\nModel = Representation + Evaluation + Optimization 1\n1.2.1 Representation\nIn supervised learning, a model must be represented as\na conditional probability distribution P(yjx)(usually we\ncall it classiﬁer) or a decision function f (x). The set of\nclassiﬁers(or decision functions) is called the hypothesis\nspace of the model. Choosing a representation for a model",
-          "source_document": "machine-learning-cheat-sheet.pdf",
+          "chunk_text": "information and technology revolution in project management, people are still at the center of \nproject management and they determine the success or failure of a project. The project team is \ninvolved in the definition of the project goals, which are instrumental in planning, organizing, \ndirecting, coordinating, and monitoring all project activities. The team is able to meet the \nproject goals and objectives by the skillful use of interpersonal and organizational s kills such",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
           "page_number": "1",
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         },
         {
-          "chunk_text": "https://github.com/soulmachine/machine-learning-cheat-sheet\nsoulmachine@gmail.com\nMachine Learning Cheat Sheet\nClassical equations, diagrams and tricks in machine learning\nMay 15, 2017\nii\n©2013 soulmachine\nExcept where otherwise noted, This document is licensed under a Creative Commons Attribution-ShareAlike 3.0\nUnported (CC BY-SA3.0) license\n(http://creativecommons.org/licenses/by/3.0/).\nPreface",
-          "source_document": "machine-learning-cheat-sheet.pdf",
+          "chunk_text": "must ensure are met. These professionals must understand the capabilities and skill levels of \nthe team and strong time management skills to ensure all tasks are completed efficiently. \n3.4 Relationship between Project Manager and Line Manager \n \nProject Manager: \nA project manager is the person responsible for leading a project from its inception to \nexecution. This includes planning, execution and managing the people, resources and scope of",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
           "page_number": "1",
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "Machine learning is not explicitly defined in the provided document context, but it can be inferred that machine learning refers to a broader field of study that encompasses various concepts and techniques presented in the cheat sheet.\n\nHowever, based on the context, we can identify some key aspects of machine learning:\n\n* Machine learning has different types [Source: machine-learning-cheat-sheet.pdf, Page 1].\n* A machine learning model consists of three elements: Representation, Evaluation, and Optimization [Source: machine-learning-cheat-sheet.pdf, Page 1].\n\nI couldn't find a direct definition of machine learning in the selected documents.",
-      "citations_present": true,
-      "latency_ms": 95769.25,
+      "generated_answer": "I couldn't find this information in the selected documents.",
+      "citations_present": false,
+      "latency_ms": 40089.19,
       "error": null
     },
     {
       "question_id": "q2",
-      "question": "What industries or fields does the document mention as applications of AI or machine learning?",
-      "expected_answer": "Should mention healthcare, finance, technology, and transportation based on the indexed content.",
-      "source_document": "test_document.txt",
+      "question": "What is agentic AI and how does it differ from traditional AI?",
+      "expected_answer": "Should explain the concept of agentic AI from the agentic_ai_wenup_prep document.",
+      "source_document": "agentic_ai_wenup_prep.md",
       "retrieved_chunks": [
         {
-          "chunk_text": "Contents\nContents . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . v\nNotation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ix\n1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1\n1.1 Types of machine learning . . . . . . . . . . . . 1\n1.2 Three elements of a machine learning\nmodel . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1\n1.2.1 Representation . . . . . . . . . . . . . . 1",
-          "source_document": "machine-learning-cheat-sheet.pdf",
-          "page_number": "1",
-          "similarity_score_unavailable": "not_exposed_by_pipeline"
-        },
-        {
-          "chunk_text": "Preface\nThis cheat sheet is a condensed version of machine learning manual, which contains many classical equations and\ndiagrams on machine learning, and aims to help you quickly recall knowledge and ideas in machine learning.\nThis cheat sheet has two signiﬁcant advantages:\n1. Clearer symbols. Mathematical formulas use quite a lot of confusing symbols. For example, X can be a set, a random",
-          "source_document": "machine-learning-cheat-sheet.pdf",
-          "page_number": "1",
-          "similarity_score_unavailable": "not_exposed_by_pipeline"
-        },
-        {
-          "chunk_text": "https://github.com/soulmachine/machine-learning-cheat-sheet\nsoulmachine@gmail.com\nMachine Learning Cheat Sheet\nClassical equations, diagrams and tricks in machine learning\nMay 15, 2017\nii\n©2013 soulmachine\nExcept where otherwise noted, This document is licensed under a Creative Commons Attribution-ShareAlike 3.0\nUnported (CC BY-SA3.0) license\n(http://creativecommons.org/licenses/by/3.0/).\nPreface",
-          "source_document": "machine-learning-cheat-sheet.pdf",
-          "page_number": "1",
-          "similarity_score_unavailable": "not_exposed_by_pipeline"
-        },
-        {
-          "chunk_text": "AJP (304195)                                               TE E&TC SEM VI                   PRASHANT L. AHIRE    \nWhat is API?API (Application programming interface) isa document that contains a description ofall the features of a product or software. Itrepresents classes and interfaces thatsoftware programs can follow tocommunicate with each other. An API canbe created for applications, libraries,operating systems, etc.",
-          "source_document": "Unit 4.pdf",
-          "page_number": 1,
-          "similarity_score_unavailable": "not_exposed_by_pipeline"
-        }
-      ],
-      "generated_answer": "I couldn't find this information in the selected documents. The provided context only contains general information about machine learning and APIs, but it doesn't specifically mention any industries or fields that apply AI or machine learning.",
-      "citations_present": false,
-      "latency_ms": 46901.49,
-      "error": null
-    },
-    {
-      "question_id": "q3",
-      "question": "What is the capital of Australia?",
-      "expected_answer": "Not found in the document — this tests whether the model correctly declines rather than hallucinating.",
-      "source_document": "N/A (out-of-scope test)",
-      "retrieved_chunks": [
-        {
-          "chunk_text": "combination of the prior mean and the MLE, which cap-\ntures the notion that the posterior is a compromise be-\ntween what we previously believed and what the data is\ntelling us.\n3.3.3.2 Posterior variance\nThe mean and mode are point estimates, but it is useful to\nknow how much we can trust them. The variance of the\nposterior is one way to measure this. The variance of the\nBeta posterior is given by\nvar(qjD) = (a + N1)(b + N0)\n(a + N1 + b + N0)2(a + N1 + b + N0 + 1)\n(3.14)",
-          "source_document": "machine-learning-cheat-sheet.pdf",
-          "page_number": 1,
-          "similarity_score_unavailable": "not_exposed_by_pipeline"
-        },
-        {
-          "chunk_text": "## 5. Frameworks",
+          "chunk_text": "# Agentic AI — Deep-Dive Prep Guide for Wenup",
           "source_document": "agentic_ai_wenup_prep.md",
           "page_number": "1",
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         },
         {
-          "chunk_text": "matrix, and \t is a D \u0002D covariance matrix. We take \t\nto be diagonal, since the whole point of the model is to\nforce zi to explain the correlation, rather than baking it\nin to the observations covariance. This overall model is\ncalled factor analysis or FA. The special case in which\n\t = s2I is called probabilistic principal components\nanalysis or PPCA. The reason for this name will become\napparent later.\n12.1.1 FA is a low rank parameterization of\nan MVN",
+          "chunk_text": "The basic idea is to start with l large, so that the margin\n1=∥w(l)∥is wide, and hence all points are inside of it\nand have ai = 1. By slowly decreasing l, a small set of\npoints will move from inside the margin to outside, and\ntheir ai values will change from 1 to 0, as they cease to\nbe support vectors. When l is maximal, the function is\ncompletely smoothed, and no support vectors remain. See\n(Hastie et al. 2004) for the details.\n(a)\n(b)",
+          "source_document": "machine-learning-cheat-sheet.pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "The older, more linear pattern: an `AgentExecutor` wraps an LLM + tools and runs a loop internally (essentially a built-in ReAct loop), but it's largely a **black box** — you get less visibility/control over intermediate state than with LangGraph's explicit graph, and it's harder to build in cycles-with-conditions, pause-for-human-approval points, or multi-agent hand-offs",
+          "source_document": "agentic_ai_wenup_prep.md",
+          "page_number": "1",
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "Most agent frameworks converge on some variant of:",
+          "source_document": "agentic_ai_wenup_prep.md",
+          "page_number": "1",
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        }
+      ],
+      "generated_answer": "Agentic AI refers to a type of artificial intelligence that focuses on creating autonomous agents that can interact with their environment and make decisions based on their experiences [Source: agentic_ai_wenup_prep.md, Page 1]. It differs from traditional AI in its emphasis on creating intelligent agents that can learn and adapt through trial and error, rather than simply following pre-programmed rules or data-driven predictions.\n\nIn contrast to traditional AI, which often relies on linear models and black-box approaches [Source: agentic_ai_wenup_prep.md, Page 1], agentic AI frameworks aim to provide more visibility and control over the intermediate state of the agent, allowing for more complex decision-making processes [Source: agentic_ai_wenup_prep.md, Page 1]. This is achieved through the use of techniques such as explicit graph representations and cycles-with-conditions, which enable agents to learn from their environment and adapt to changing circumstances.\n\nIt's worth noting that traditional AI often relies on linear models, whereas agentic AI focuses on creating more complex and dynamic systems [Source: machine-learning-cheat-sheet.pdf, Page 1].",
+      "citations_present": true,
+      "latency_ms": 34427.55,
+      "error": null
+    },
+    {
+      "question_id": "q3",
+      "question": "What are the steps in risk management?",
+      "expected_answer": "Should list the specific steps mentioned in the PM UNIT 5 document.",
+      "source_document": "PM UNIT 5 BY VP.pdf",
+      "retrieved_chunks": [
+        {
+          "chunk_text": "advantages of the changes that have been implemented. Instead of starting the project, \nstakeholders should create an atmosphere in which the initiative may be implemented. \nStep2: Encourage middle-level management: \nManagers in the middle level can play an important role in reducing opposition to change. They \nwork closely with the other two levels of management and communicate with them on a \nfrequent basis. The results of the projects should be shared to them and they should be asked",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": "1",
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "expectations of the project's outcomes are good. \nTo minimize the negative effects of change, consider the following steps: \nStep1: Proactive communication: \nPeople or stakeholders who will be impacted by the project should be informed and  treated \nwith respect. It should be communicated in such a way that the outcome of the project becomes \nthe stakeholders' goal and they begin to pursue change.  should be well informed about the",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": "1",
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "6.4.1 Regularized risk minimization . 39\n6.4.2 Structural risk minimization . . . 39\n6.4.3 Estimating the risk using\ncross validation . . . . . . . . . . . . . 39\n6.4.4 Upper bounding the risk\nusing statistical learning\ntheory * . . . . . . . . . . . . . . . . . . . . 39\n6.4.5 Surrogate loss functions . . . . . . 39\n6.5 Pathologies of frequentist statistics * . . . 39\n7 Linear Regression . . . . . . . . . . . . . . . . . . . . . . . . 41",
           "source_document": "machine-learning-cheat-sheet.pdf",
           "page_number": "1",
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         },
         {
-          "chunk_text": "organizational structure and the projectized organizational structure depending on what type of \nmatrix structure is being run. \nFor instance, the strong matrix organizational structure has some similarit ies with that of a \nprojectized organizational structure in the sense that the project manager is responsible for a \nproject. If the organization is running a weak matrix structure, then the project authority would",
-          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "chunk_text": "is represented by parameter q\u0003. In other words, the ex-\npectation is wrt the sampling distribution of the estimator.\nCompare this to the Bayesian posterior expected loss:\nr( f jD;) (6.2)\n6.3 Desirable properties of estimators\n6.4 Empirical risk minimization\n6.4.1 Regularized risk minimization\n6.4.2 Structural risk minimization\n6.4.3 Estimating the risk using cross\nvalidation\n6.4.4 Upper bounding the risk using\nstatistical learning theory *\n6.4.5 Surrogate loss functions\nlog-loss",
+          "source_document": "machine-learning-cheat-sheet.pdf",
           "page_number": 1,
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "I couldn't find this information in the selected documents. The provided context only discusses machine learning concepts, frameworks, and statistical models, but does not contain any information about countries or their capitals.",
+      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses project management, machine learning, and statistics, but does not mention risk management specifically.",
       "citations_present": false,
-      "latency_ms": 38442.71,
+      "latency_ms": 21965.93,
       "error": null
     }
   ]
