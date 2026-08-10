@@ -39,7 +39,6 @@ class Settings(BaseSettings):
         "CHROMA_PERSIST_DIRECTORY", 
         "/opt/render/project/src/chroma_data"
     )
-    CHROMA_COLLECTION_NAME: str = "knowledge_chunks"
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
     RAG_CHUNK_SIZE: int = 500
     RAG_CHUNK_OVERLAP: int = 50

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-09T20:31:57.577301",
+    "timestamp": "2026-08-09T23:47:45.617260",
     "user_email": "kanishkaarde90@gmail.com",
     "user_id": "2f9c2a2c-2dac-4596-b117-6b2cffe01425",
     "model": "llama3.1",
@@ -39,9 +39,9 @@
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "I couldn't find this information in the selected documents.",
+      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses organizational structure, project management, and team roles, but does not mention project risk management.",
       "citations_present": false,
-      "latency_ms": 40089.19,
+      "latency_ms": 45058.03,
       "error": null
     },
     {
@@ -75,9 +75,9 @@
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "Agentic AI refers to a type of artificial intelligence that focuses on creating autonomous agents that can interact with their environment and make decisions based on their experiences [Source: agentic_ai_wenup_prep.md, Page 1]. It differs from traditional AI in its emphasis on creating intelligent agents that can learn and adapt through trial and error, rather than simply following pre-programmed rules or data-driven predictions.\n\nIn contrast to traditional AI, which often relies on linear models and black-box approaches [Source: agentic_ai_wenup_prep.md, Page 1], agentic AI frameworks aim to provide more visibility and control over the intermediate state of the agent, allowing for more complex decision-making processes [Source: agentic_ai_wenup_prep.md, Page 1]. This is achieved through the use of techniques such as explicit graph representations and cycles-with-conditions, which enable agents to learn from their environment and adapt to changing circumstances.\n\nIt's worth noting that traditional AI often relies on linear models, whereas agentic AI focuses on creating more complex and dynamic systems [Source: machine-learning-cheat-sheet.pdf, Page 1].",
+      "generated_answer": "Agentic AI refers to a type of artificial intelligence that focuses on creating autonomous agents capable of making decisions in complex environments [Source: agentic_ai_wenup_prep.md, Page 1]. It differs from traditional AI in its emphasis on agency and control, allowing for more flexible and adaptive decision-making processes.\n\nIn contrast to traditional AI, which often relies on fixed rules and algorithms, agentic AI employs a more dynamic approach that enables agents to learn from their environment and adapt to changing circumstances [Source: machine-learning-cheat-sheet.pdf, Page 1]. This is achieved through the use of techniques such as reinforcement learning and deep learning, which allow agents to optimize their behavior in pursuit of specific goals.\n\nOne key difference between agentic AI and traditional AI is the level of control and visibility provided to the user. In traditional AI, the algorithmic process is often opaque, making it difficult for users to understand how decisions are being made [Source: agentic_ai_wenup_prep.md, Page 1]. In contrast, agentic AI frameworks like LangGraph provide more explicit control over intermediate states, allowing users to build in complex behaviors and decision-making processes.\n\nOverall, agentic AI represents a significant departure from traditional AI approaches, offering a more flexible and adaptive framework for creating intelligent agents that can operate in dynamic environments.",
       "citations_present": true,
-      "latency_ms": 34427.55,
+      "latency_ms": 41231.05,
       "error": null
     },
     {
@@ -111,9 +111,9 @@
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses project management, machine learning, and statistics, but does not mention risk management specifically.",
+      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses project management, machine learning, and statistical concepts, but does not mention risk management specifically.",
       "citations_present": false,
-      "latency_ms": 21965.93,
+      "latency_ms": 24105.92,
       "error": null
     }
   ]

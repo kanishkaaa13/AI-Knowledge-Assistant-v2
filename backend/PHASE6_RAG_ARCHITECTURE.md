@@ -43,7 +43,6 @@ The prompt template instructs the model to:
 
 ```env
 CHROMA_PERSIST_DIRECTORY=storage/chroma
-CHROMA_COLLECTION_NAME=knowledge_chunks
 EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
 RAG_CHUNK_SIZE=500
 RAG_CHUNK_OVERLAP=50
