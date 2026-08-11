@@ -368,18 +368,6 @@ async def stream_assistant_chat(
     )
 
 
-@router.get("/chat/test-stream")
-async def test_stream():
-    import asyncio
-    import json
-    async def gen():
-        for word in ["Hello", " from", " AI", " stream", " test!"]:
-            yield f"data: {json.dumps({'type': 'token', 'content': word})}\n\n"
-            await asyncio.sleep(0.1)
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-    return StreamingResponse(gen(), media_type="text/event-stream")
-
-
 @router.post("/summaries", response_model=AssistantSummaryResponse)
 async def summarize_documents(
     payload: AssistantSummaryRequest,

@@ -16,3 +16,8 @@ storage/
 __pycache__/
 *.pyc
 backend/okf_bundles/
+
+# Local SQLite databases (may contain real user data)
+*.db
+*.db-shm
+*.db-wal

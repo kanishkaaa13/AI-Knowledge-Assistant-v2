@@ -14,7 +14,6 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -156,10 +155,9 @@ def create_application() -> FastAPI:
     
     register_exception_handlers(app)
 
-    # Mount static file serving for uploads
-    upload_dir = Path(settings.UPLOAD_ROOT_DIR)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
+    # Uploads are only served through the authenticated /documents endpoints,
+    # which enforce per-user ownership. They are never exposed as static files.
+    Path(settings.UPLOAD_ROOT_DIR).mkdir(parents=True, exist_ok=True)
 
     @app.get("/", tags=["root"])
     async def root() -> dict[str, str]:
@@ -168,18 +166,6 @@ def create_application() -> FastAPI:
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, str]:
         return {"status": "healthy", "environment": settings.APP_ENV}
-
-    @app.get("/cors-test")
-    async def cors_test(request: Request):
-        return JSONResponse(
-            content={"origin_received": request.headers.get("origin", "none")},
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get(
-                    "origin", "https://ai-knowledge-app-3.vercel.app"
-                ),
-                "Access-Control-Allow-Credentials": "true",
-            }
-        )
 
     # EXPERIMENTAL — parallel OKF pipeline, not the default RAG path.
     from app.api.okf_routes import router as okf_router

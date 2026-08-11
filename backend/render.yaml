@@ -17,6 +17,15 @@ services:
         value: /opt/render/project/src/uploads
       - key: ENVIRONMENT
         value: production
+      - key: APP_ENV
+        value: production
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Set explicitly in the dashboard: rotating it makes already-encrypted uploads unreadable.
+      - key: FERNET_SECRET_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
 
 databases:
   - name: ai-knowledge-db

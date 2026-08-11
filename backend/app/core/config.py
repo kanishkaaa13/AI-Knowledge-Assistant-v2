@@ -7,6 +7,11 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Development-only placeholders. Production startup fails while these are in use.
+DEV_JWT_SECRET_KEY = "replace-this-development-jwt-secret-with-32-plus-characters"
+DEV_FERNET_SECRET_KEY = "change-me-change-me-change-me-32bytes"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -21,8 +26,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(
         default="sqlite:///./ai_knowledge_assistant.db"
     )
-    JWT_SECRET_KEY: str = "replace-this-development-jwt-secret-with-32-plus-characters"
-    FERNET_SECRET_KEY: str = "change-me-change-me-change-me-32bytes"
+    JWT_SECRET_KEY: str = DEV_JWT_SECRET_KEY
+    FERNET_SECRET_KEY: str = DEV_FERNET_SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRES_DAYS: int = 7
     RATE_LIMIT_WINDOW_SECONDS: int = 60
@@ -86,8 +91,11 @@ class Settings(BaseSettings):
             if self.LLM_PROVIDER.lower() != "ollama":
                 self.LLM_PROVIDER = "ollama"
 
-        if self.APP_ENV.lower() == "production" and self.JWT_SECRET_KEY == "change-me-in-production":
-            raise ValueError("JWT_SECRET_KEY must be replaced in production.")
+        if self.APP_ENV.lower() == "production":
+            if self.JWT_SECRET_KEY == DEV_JWT_SECRET_KEY:
+                raise ValueError("JWT_SECRET_KEY must be set to a unique random value in production.")
+            if self.FERNET_SECRET_KEY == DEV_FERNET_SECRET_KEY:
+                raise ValueError("FERNET_SECRET_KEY must be set to a unique random value in production.")
 
         return self
 
