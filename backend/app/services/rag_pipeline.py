@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections import Counter
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -103,6 +104,70 @@ def _chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> li
         if start < 0:
             start = 0
     return chunks
+
+
+def check_keyword_patterns(content: str) -> bool:
+    """Check if content matches boilerplate keyword patterns."""
+    patterns = [
+        r"table of contents",
+        r"^contents\s*$",
+        r"copyright\s*©",
+        r"all rights reserved",
+        r"isbn\s*\d",
+        r"^preface\s*$",
+        r"^foreword\s*$",
+        r"^acknowledgments\s*$",
+        r"page\s+[ivx]+",
+    ]
+    content_lower = content.lower()
+    for pattern in patterns:
+        if re.search(pattern, content_lower):
+            return True
+    return False
+
+
+def check_content_density(content: str) -> bool:
+    """Check if content has low information density."""
+    words = content.split()
+    unique_words = set(word.lower() for word in words if word.strip())
+    
+    if len(content) < 50:
+        return True  # Too short
+    
+    unique_word_ratio = len(unique_words) / max(len(content), 1) * 100
+    if unique_word_ratio < 10:  # < 10 unique words per 100 chars
+        return True
+    
+    # High repetition: > 30% of words repeated
+    word_counts = Counter(word.lower() for word in words)
+    repeated_words = sum(1 for count in word_counts.values() if count > 1)
+    if len(words) > 0 and repeated_words / len(words) > 0.3:
+        return True
+    
+    return False
+
+
+def check_position_with_content(chunk_index: int, total_chunks: int) -> bool:
+    """Check position heuristic only if combined with specific boilerplate keywords."""
+    if chunk_index < 2:  # First 2 chunks
+        return True
+    if chunk_index >= total_chunks - 2:  # Last 2 chunks
+        return True
+    return False
+
+
+def is_boilerplate_chunk(content: str, chunk_index: int, total_chunks: int) -> bool:
+    """Determine if a chunk is boilerplate using revised detection logic."""
+    # Specific boilerplate keyword - always flag
+    if check_keyword_patterns(content):
+        return True
+    
+    # Position only - need very low density to flag
+    if check_position_with_content(chunk_index, total_chunks):
+        if check_content_density(content):
+            return True
+    
+    return False
 
 
 class RAGIngestionService:
@@ -276,12 +341,42 @@ class RAGIngestionService:
                 detail="Document text could not be split into chunks.",
             )
 
-        created_chunks = self.chunk_repository.bulk_create(chunk_payloads)
+        # Apply boilerplate detection and filter
+        total_chunks = len(chunk_payloads)
+        filtered_payloads = []
+        filtered_vector_records = []
+        new_chunk_index = 0
+        
+        for i, (payload, vector_record) in enumerate(zip(chunk_payloads, vector_records)):
+            chunk_text = payload["content"]
+            original_chunk_index = payload["chunk_index"]
+            
+            if not is_boilerplate_chunk(chunk_text, original_chunk_index, total_chunks):
+                # Re-index the chunk after filtering
+                payload["chunk_index"] = new_chunk_index
+                vector_record.id = f"{document.id}:{new_chunk_index}"
+                vector_record.metadata["chunk_index"] = new_chunk_index
+                vector_record.metadata["chunk_id"] = vector_record.id
+                
+                filtered_payloads.append(payload)
+                filtered_vector_records.append(vector_record)
+                new_chunk_index += 1
+        
+        print(f"[INDEX] Boilerplate detection filtered {total_chunks - len(filtered_payloads)} chunks")
+        print(f"[INDEX] Remaining chunks after filtering: {len(filtered_payloads)}")
+        
+        if not filtered_payloads:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All chunks were filtered as boilerplate.",
+            )
+
+        created_chunks = self.chunk_repository.bulk_create(filtered_payloads)
         print(f"[INDEX] Stored {len(created_chunks)} chunk records in DB")
 
         try:
-            print(f"[INDEX] Upserting {len(vector_records)} vectors into ChromaDB for user {document.user_id}")
-            self.vector_store.upsert_vectors(user_id=document.user_id, records=vector_records)
+            print(f"[INDEX] Upserting {len(filtered_vector_records)} vectors into ChromaDB for user {document.user_id}")
+            self.vector_store.upsert_vectors(user_id=document.user_id, records=filtered_vector_records)
         except Exception:
             logger.exception("ChromaDB upsert failed -- rolling back chunk records.")
             for chunk in created_chunks:

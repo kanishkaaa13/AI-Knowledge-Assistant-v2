@@ -9,7 +9,7 @@ from app.models.user import User
 from app.models.uploaded_document import UploadedDocument
 from app.services.rag_pipeline import RAGIngestionService
 
-user_id_str = "12b2f540-96bf-4b44-92da-f263524a8662"
+user_id_str = "2f9c2a2c-2dac-4596-b117-6b2cffe01425"
 user_id = uuid.UUID(user_id_str)
 
 # Skip delete_document_index since collections are already deleted

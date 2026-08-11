@@ -215,7 +215,7 @@ async def main():
     """Main entry point for evaluation."""
     
     # Configuration - use user with multi-page document for boilerplate testing
-    USER_EMAIL = "concurrent2@example.com"  # User with multi-page documents
+    USER_EMAIL = "kanishkaarde90@gmail.com"  # User with multi-page documents
     MODEL = "llama3.1"
     TOP_K = 4
     OUTPUT_FILE = "evaluation_results_boilerplate.json"
