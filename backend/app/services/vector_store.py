@@ -343,6 +343,19 @@ class VectorStoreService:
                     filtered_results.append(res)
                 formatted = filtered_results
 
+            # Apply relevance threshold: filter out low-quality matches
+            RELEVANCE_THRESHOLD = 1.4  # Distance threshold - exclude distances > 1.4
+            before_threshold_count = len(formatted)
+            formatted = [res for res in formatted if res.distance <= RELEVANCE_THRESHOLD]
+            after_threshold_count = len(formatted)
+            
+            if before_threshold_count > after_threshold_count:
+                logger.info(
+                    "Relevance threshold filtered %d low-quality results (distance > %.1f)",
+                    before_threshold_count - after_threshold_count,
+                    RELEVANCE_THRESHOLD
+                )
+
             # Apply cross-encoder reranking if we have results
             if formatted:
                 reranker = get_reranker_service()
@@ -431,7 +444,8 @@ class VectorStoreService:
                 "document": res.document,
                 "metadata": res.metadata,
                 "semantic_score": res.semantic_score,
-                "keyword_score": 0.0
+                "keyword_score": 0.0,
+                "distance": res.distance  # Preserve original distance for thresholding
             }
             rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (k + rank))
         
@@ -458,7 +472,8 @@ class VectorStoreService:
                         "chunk_index": chunk.chunk_index
                     },
                     "semantic_score": 0.0,
-                    "keyword_score": bm25_score
+                    "keyword_score": bm25_score,
+                    "distance": 2.0  # High distance for BM25-only results (no semantic match)
                 }
             else:
                 chunk_data_map[key]["keyword_score"] = bm25_score
@@ -487,7 +502,7 @@ class VectorStoreService:
                     id=data["id"],
                     document=data["document"],
                     metadata=data["metadata"],
-                    distance=0.0,
+                    distance=data.get("distance", 0.0),  # Use preserved distance
                     semantic_score=data["semantic_score"],
                     keyword_score=k_score
                 )
@@ -518,6 +533,19 @@ class VectorStoreService:
         if len(deduped_results) != len(final_results):
             logger.info(f"[HYBRID] Deduped {len(final_results) - len(deduped_results)} duplicate chunks")
             final_results = deduped_results
+        
+        # Apply relevance threshold: filter out low-quality matches
+        RELEVANCE_THRESHOLD = 1.4  # Distance threshold - exclude distances > 1.4
+        before_threshold_count = len(final_results)
+        final_results = [res for res in final_results if res.distance <= RELEVANCE_THRESHOLD]
+        after_threshold_count = len(final_results)
+        
+        if before_threshold_count > after_threshold_count:
+            logger.info(
+                "Relevance threshold filtered %d low-quality results (distance > %.1f)",
+                before_threshold_count - after_threshold_count,
+                RELEVANCE_THRESHOLD
+            )
         
         # Apply cross-encoder reranking if we have results
         if final_results:

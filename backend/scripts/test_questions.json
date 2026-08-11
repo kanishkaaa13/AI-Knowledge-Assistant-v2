@@ -16,5 +16,17 @@
         "question": "What are the steps in risk management?",
         "expected_answer": "Should list the specific steps mentioned in the PM UNIT 5 document.",
         "source_document": "PM UNIT 5 BY VP.pdf"
+    },
+    {
+        "id": "q4",
+        "question": "What is the capital of Australia?",
+        "expected_answer": "Should return 0 chunks (out-of-scope query).",
+        "source_document": "none"
+    },
+    {
+        "id": "q5",
+        "question": "Who won the World Cup in 2022?",
+        "expected_answer": "Should return 0 chunks (out-of-scope query).",
+        "source_document": "none"
     }
 ]

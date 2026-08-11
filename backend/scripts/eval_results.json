@@ -1,11 +1,11 @@
 {
   "metadata": {
-    "timestamp": "2026-08-09T23:47:45.617260",
+    "timestamp": "2026-08-10T12:18:16.935257",
     "user_email": "kanishkaarde90@gmail.com",
     "user_id": "2f9c2a2c-2dac-4596-b117-6b2cffe01425",
     "model": "llama3.1",
     "top_k": 4,
-    "total_questions": 3
+    "total_questions": 5
   },
   "results": [
     {
@@ -39,9 +39,9 @@
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses organizational structure, project management, and team roles, but does not mention project risk management.",
+      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses organizational structure, project management, and team dynamics, but does not mention project risk management.",
       "citations_present": false,
-      "latency_ms": 45058.03,
+      "latency_ms": 38304.59,
       "error": null
     },
     {
@@ -75,9 +75,9 @@
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "Agentic AI refers to a type of artificial intelligence that focuses on creating autonomous agents capable of making decisions in complex environments [Source: agentic_ai_wenup_prep.md, Page 1]. It differs from traditional AI in its emphasis on agency and control, allowing for more flexible and adaptive decision-making processes.\n\nIn contrast to traditional AI, which often relies on fixed rules and algorithms, agentic AI employs a more dynamic approach that enables agents to learn from their environment and adapt to changing circumstances [Source: machine-learning-cheat-sheet.pdf, Page 1]. This is achieved through the use of techniques such as reinforcement learning and deep learning, which allow agents to optimize their behavior in pursuit of specific goals.\n\nOne key difference between agentic AI and traditional AI is the level of control and visibility provided to the user. In traditional AI, the algorithmic process is often opaque, making it difficult for users to understand how decisions are being made [Source: agentic_ai_wenup_prep.md, Page 1]. In contrast, agentic AI frameworks like LangGraph provide more explicit control over intermediate states, allowing users to build in complex behaviors and decision-making processes.\n\nOverall, agentic AI represents a significant departure from traditional AI approaches, offering a more flexible and adaptive framework for creating intelligent agents that can operate in dynamic environments.",
+      "generated_answer": "Agentic AI refers to a type of artificial intelligence that focuses on creating autonomous agents that can interact with their environment [Source: agentic_ai_wenup_prep.md, Page 1]. It differs from traditional AI in its emphasis on agency and control, allowing agents to make decisions based on their own experiences and goals.\n\nIn contrast to traditional AI, which often relies on pre-defined rules and algorithms, agentic AI uses machine learning techniques to learn from data and adapt to new situations [Source: machine-learning-cheat-sheet.pdf, Page 1]. This approach enables agents to develop a sense of self-awareness and autonomy, allowing them to interact with their environment in a more human-like way.\n\nThe older, more linear pattern of agentic AI, as described in the provided context, involves using an `AgentExecutor` to wrap an LLM + tools and run a loop internally [Source: agentic_ai_wenup_prep.md, Page 1]. However, this approach is considered a \"black box\" due to its lack of visibility and control over intermediate state [Source: agentic_ai_wenup_prep.md, Page 1].\n\nIn contrast, LangGraph's explicit graph provides more visibility and control over the agent's behavior, allowing for the construction of cycles-with-conditions, pause-for-human-approval points, or multi-agent hand-offs [Source: agentic_ai_wenup_prep.md, Page 1]. This suggests that agentic AI is focused on creating agents that can interact with their environment in a more flexible and adaptive way.",
       "citations_present": true,
-      "latency_ms": 41231.05,
+      "latency_ms": 41274.95,
       "error": null
     },
     {
@@ -99,21 +99,93 @@
           "similarity_score_unavailable": "not_exposed_by_pipeline"
         },
         {
-          "chunk_text": "6.4.1 Regularized risk minimization . 39\n6.4.2 Structural risk minimization . . . 39\n6.4.3 Estimating the risk using\ncross validation . . . . . . . . . . . . . 39\n6.4.4 Upper bounding the risk\nusing statistical learning\ntheory * . . . . . . . . . . . . . . . . . . . . 39\n6.4.5 Surrogate loss functions . . . . . . 39\n6.5 Pathologies of frequentist statistics * . . . 39\n7 Linear Regression . . . . . . . . . . . . . . . . . . . . . . . . 41",
-          "source_document": "machine-learning-cheat-sheet.pdf",
-          "page_number": "1",
-          "similarity_score_unavailable": "not_exposed_by_pipeline"
-        },
-        {
           "chunk_text": "is represented by parameter q\u0003. In other words, the ex-\npectation is wrt the sampling distribution of the estimator.\nCompare this to the Bayesian posterior expected loss:\nr( f jD;) (6.2)\n6.3 Desirable properties of estimators\n6.4 Empirical risk minimization\n6.4.1 Regularized risk minimization\n6.4.2 Structural risk minimization\n6.4.3 Estimating the risk using cross\nvalidation\n6.4.4 Upper bounding the risk using\nstatistical learning theory *\n6.4.5 Surrogate loss functions\nlog-loss",
           "source_document": "machine-learning-cheat-sheet.pdf",
           "page_number": 1,
           "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "Simple mental model: **RAG is a tool an agent can use.** An agent might call retrieval, look at what came back, decide it's insufficient, reformulate the query, retrieve again, then call a different tool (e.g., a calculator or a jurisdiction-rules lookup), and only then generate the final answer. RAG is a step; an agent is a control loop that decides which steps to take, in what order, for how long.",
+          "source_document": "agentic_ai_wenup_prep.md",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
         }
       ],
-      "generated_answer": "I couldn't find this information in the selected documents. The provided context discusses project management, machine learning, and statistical concepts, but does not mention risk management specifically.",
+      "generated_answer": "I couldn't find this information in the selected documents. The provided context does not mention \"risk management\" explicitly. However, it does discuss \"expectations of the project's outcomes\" [Source: PM UNIT 3 BY VP  (1).pdf, Page 1] and \"desirable properties of estimators\" [Source: machine-learning-cheat-sheet.pdf, Page 1], but these topics are not directly related to risk management.",
+      "citations_present": true,
+      "latency_ms": 23444.89,
+      "error": null
+    },
+    {
+      "question_id": "q4",
+      "question": "What is the capital of Australia?",
+      "expected_answer": "Should return 0 chunks (out-of-scope query).",
+      "source_document": "none",
+      "retrieved_chunks": [
+        {
+          "chunk_text": "combination of the prior mean and the MLE, which cap-\ntures the notion that the posterior is a compromise be-\ntween what we previously believed and what the data is\ntelling us.\n3.3.3.2 Posterior variance\nThe mean and mode are point estimates, but it is useful to\nknow how much we can trust them. The variance of the\nposterior is one way to measure this. The variance of the\nBeta posterior is given by\nvar(qjD) = (a + N1)(b + N0)\n(a + N1 + b + N0)2(a + N1 + b + N0 + 1)\n(3.14)",
+          "source_document": "machine-learning-cheat-sheet.pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "manager has project authority. He has jurisdiction over the project’s budget, schedule, and the \nproject team. You would find him at the top of the hierarchical structure, calling all the shots; \nwith employees playing supporting roles for the project. At the end of the project, the project \nteam members are released and resources directed towards more relevant areas. \nWhat’s great about this kind of structure is that there is a clear, established line of authority;",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "The model is choosing tools based on: the tool's *description* (this is the single most important factor — vague descriptions cause wrong or missed tool calls), the current conversational/task context, and — in reasoning models — its own chain-of-thought about what it still needs.",
+          "source_document": "agentic_ai_wenup_prep.md",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "organizational structure and the projectized organizational structure depending on what type of \nmatrix structure is being run. \nFor instance, the strong matrix organizational structure has some similarit ies with that of a \nprojectized organizational structure in the sense that the project manager is responsible for a \nproject. If the organization is running a weak matrix structure, then the project authority would",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        }
+      ],
+      "generated_answer": "I couldn't find this information in the selected documents.",
       "citations_present": false,
-      "latency_ms": 24105.92,
+      "latency_ms": 14930.94,
+      "error": null
+    },
+    {
+      "question_id": "q5",
+      "question": "Who won the World Cup in 2022?",
+      "expected_answer": "Should return 0 chunks (out-of-scope query).",
+      "source_document": "none",
+      "retrieved_chunks": [
+        {
+          "chunk_text": "ReAct (Yao et al., 2022) interleaves **reasoning traces** with **actions**, in a repeating cycle:",
+          "source_document": "agentic_ai_wenup_prep.md",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "An organization that practices workforce diversity should not shy away from letting the world \nknow that the organization embraces diversity and works with people from all backgrounds. \nThe organization can start  by encouraging and supporting its staff who volunteer in different \ncauses such as a disability walk or an HIV/AIDs awareness forum. \nIt can sponsor fund drives to raise funds to support vulnerable and underrepresented",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "policies and initiatives. As a result of the increased variety of the workforce around the world, \nbusinesses are implementing diversity management techniques. \nCompanies may now recruit and manage staff from all over the world and in multiple time \nzones. Companies are developing particular  policies and programs to improve employee \nparticipation, promotion , and retention of employees from all origins and cultures. The",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        },
+        {
+          "chunk_text": "AISSMS IOIT                                                                                                           TE(E&TC) \n \nProject Management                                                                                           Milind P Gajare  \nthe functional manager who possesses a significant level of expertise in the same field. That is \nto say that the project ma nager, in this type of organization has little to no authority here; in",
+          "source_document": "PM UNIT 3 BY VP  (1).pdf",
+          "page_number": 1,
+          "similarity_score_unavailable": "not_exposed_by_pipeline"
+        }
+      ],
+      "generated_answer": "I couldn't find any information about the World Cup winner in 2022 within the provided document context. The documents appear to be related to project management, workforce diversity, and AI-related topics, but do not mention sports or international competitions like the World Cup.",
+      "citations_present": false,
+      "latency_ms": 16090.08,
       "error": null
     }
   ]

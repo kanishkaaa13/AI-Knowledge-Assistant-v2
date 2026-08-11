@@ -162,16 +162,50 @@ async def run_evaluation(
     return report
 
 
-# Example test questions format (to be replaced by user-provided questions)
-EXAMPLE_TEST_QUESTIONS = [
+# Test questions for relevance threshold evaluation
+TEST_QUESTIONS_THRESHOLD = [
     {
         "question": "What is machine learning?",
         "expected_answer": "Machine learning is a subset of artificial intelligence...",
-        "document_ids": None,  # None means search all documents
+        "document_ids": None,
     },
     {
-        "question": "What are the key concepts in machine learning?",
-        "expected_answer": "Key concepts include supervised learning, unsupervised learning, reinforcement learning...",
+        "question": "What is agentic AI and how does it differ from traditional AI?",
+        "expected_answer": "Agentic AI refers to AI systems that can take autonomous actions...",
+        "document_ids": None,
+    },
+    {
+        "question": "What is the capital of Australia?",
+        "expected_answer": "Canberra",
+        "document_ids": None,
+    },
+    {
+        "question": "What are the steps in risk management?",
+        "expected_answer": "Risk management involves identification, assessment, and mitigation...",
+        "document_ids": None,
+    },
+    {
+        "question": "What is project management?",
+        "expected_answer": "Project management is the practice of planning, executing, and controlling projects...",
+        "document_ids": None,
+    },
+]
+
+# Test questions for boilerplate detection evaluation (with page 16 content)
+TEST_QUESTIONS_BOILERPLATE = [
+    {
+        "question": "What is machine learning?",
+        "expected_answer": "Machine learning is a subset of artificial intelligence...",
+        "document_ids": None,
+    },
+    {
+        "question": "What are the types of machine learning?",
+        "expected_answer": "Types include supervised, unsupervised, and reinforcement learning...",
+        "document_ids": None,
+    },
+    {
+        "question": "What is the capital of Australia?",
+        "expected_answer": "Canberra",
         "document_ids": None,
     },
 ]
@@ -180,14 +214,14 @@ EXAMPLE_TEST_QUESTIONS = [
 async def main():
     """Main entry point for evaluation."""
     
-    # Configuration
-    USER_EMAIL = "concurrent1@example.com"  # Test user email
+    # Configuration - use user with multi-page document for boilerplate testing
+    USER_EMAIL = "concurrent2@example.com"  # User with multi-page documents
     MODEL = "llama3.1"
     TOP_K = 4
-    OUTPUT_FILE = "evaluation_results.json"
+    OUTPUT_FILE = "evaluation_results_boilerplate.json"
     
-    # Test questions - REPLACE THIS WITH USER-PROVIDED QUESTIONS
-    test_questions = EXAMPLE_TEST_QUESTIONS
+    # Test questions for boilerplate detection evaluation
+    test_questions = TEST_QUESTIONS_BOILERPLATE
     
     # Run evaluation
     report = await run_evaluation(
