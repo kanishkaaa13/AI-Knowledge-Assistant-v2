@@ -8,6 +8,12 @@ This script:
 4. Writes them back to disk
 
 SAFETY: Run with --dry-run first to see what would be changed
+
+IMPORTANT: This migration is DESTRUCTIVE - it overwrites files in place.
+Future migration scripts touching user files should write to a temp path
+(e.g., file_path.with_suffix('.tmp')), verify the operation succeeded,
+then atomically rename the temp file to the original path. This provides
+a rollback path if the migration fails partway through.
 """
 
 import sys
