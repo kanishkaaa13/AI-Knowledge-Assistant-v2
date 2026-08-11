@@ -7,10 +7,10 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
+import { AuthFormField } from "@/components/auth/auth-form-field";
 import { useAuth } from "@/components/providers/auth-provider";
+import { extractErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginSchema } from "@/lib/validations/auth";
 
 export function LoginForm() {
@@ -34,21 +34,8 @@ export function LoginForm() {
 
     try {
       await loginUser(values, redirectTo);
-    } catch (error: any) {
-      let detail = error?.response?.data?.detail 
-        || (error instanceof Error ? error.message : null) 
-        || (typeof error === "string" ? error : null);
-      let message = "Unable to log in.";
-
-      if (detail === "User not found") {
-        message = "User not found";
-      } else if (detail === "Incorrect password") {
-        message = "Incorrect password";
-      } else if (detail === "Account inactive") {
-        message = "Account inactive";
-      } else if (detail) {
-        message = typeof detail === "string" ? detail : JSON.stringify(detail);
-      }
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, "Unable to log in.");
 
       setError("password", { type: "server", message });
       toast.error(message);
@@ -57,19 +44,22 @@ export function LoginForm() {
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" placeholder="you@example.com" {...register("email")} />
-        {errors.email ? <p className="text-sm text-red-500">{errors.email.message}</p> : null}
-      </div>
+      <AuthFormField
+        error={errors.email?.message}
+        label="Email"
+        name="email"
+        placeholder="you@example.com"
+        registration={register("email")}
+      />
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" placeholder="Enter your password" {...register("password")} />
-        {errors.password ? (
-          <p className="text-sm text-red-500">{errors.password.message}</p>
-        ) : null}
-      </div>
+      <AuthFormField
+        error={errors.password?.message}
+        label="Password"
+        name="password"
+        placeholder="Enter your password"
+        registration={register("password")}
+        type="password"
+      />
 
       <Button className="w-full" size="lg" type="submit" disabled={isSubmitting}>
         {isSubmitting ? (

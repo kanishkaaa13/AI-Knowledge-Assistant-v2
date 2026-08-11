@@ -18,6 +18,27 @@ from app.services.auth import authenticate_user, create_user, get_user_by_email,
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+ACCESS_TOKEN_COOKIE_MAX_AGE = 86400
+
+
+def _issue_session(response: Response, user: User, *, message: str) -> AuthResponse:
+    """Mint an access token, set it as an httpOnly cookie and build the auth payload."""
+    access_token = create_access_token(data={"sub": str(user.id)})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=ACCESS_TOKEN_COOKIE_MAX_AGE,
+    )
+    return AuthResponse(
+        user=UserRead.model_validate(user),
+        access_token=access_token,
+        token_type="bearer",
+        message=message,
+    )
+
 
 
 
@@ -62,21 +83,7 @@ async def register(
             detail=str(e),
         )
 
-    access_token = create_access_token(data={"sub": str(user.id)})
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=86400,
-    )
-    return AuthResponse(
-        user=UserRead.model_validate(user), 
-        access_token=access_token,
-        token_type="bearer",
-        message="Account created."
-    )
+    return _issue_session(response, user, message="Account created.")
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -149,21 +156,7 @@ async def login(
             detail="An error occurred during authentication.",
         )
 
-    access_token = create_access_token(data={"sub": str(user.id)})
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=86400,
-    )
-    return AuthResponse(
-        user=UserRead.model_validate(user), 
-        access_token=access_token,
-        token_type="bearer",
-        message="Logged in successfully."
-    )
+    return _issue_session(response, user, message="Logged in successfully.")
 
 
 
@@ -230,21 +223,7 @@ async def refresh(
                 detail="User not found.",
             )
         
-        new_token = create_access_token(data={"sub": str(user.id)})
-        response.set_cookie(
-            key="access_token",
-            value=new_token,
-            httponly=True,
-            secure=True,
-            samesite="none",
-            max_age=86400,
-        )
-        return AuthResponse(
-            user=UserRead.model_validate(user), 
-            access_token=new_token,
-            token_type="bearer",
-            message="Token refreshed."
-        )
+        return _issue_session(response, user, message="Token refreshed.")
     except HTTPException:
         raise
     except Exception as e:

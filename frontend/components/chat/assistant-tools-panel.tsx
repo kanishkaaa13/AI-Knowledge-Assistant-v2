@@ -4,6 +4,7 @@ import * as React from "react";
 import { BookOpenText, Download, FileText, Lightbulb, SearchCode, Sparkles, Trash2, Cpu, CheckSquare, Square, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
+import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AssistantQuizItem, SemanticDocumentSearchItem } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDocuments, useDeleteDocument, useUploadDocument } from "@/hooks/use-documents";
 import { MindMap } from "@/components/visual/mind-map";
 import { KnowledgeGraph } from "@/components/visual/knowledge-graph";
-
-function formatBytes(bytes: number | null) {
-  if (!bytes) return "Unknown size";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function AssistantToolsPanel({
   generatedSummary,

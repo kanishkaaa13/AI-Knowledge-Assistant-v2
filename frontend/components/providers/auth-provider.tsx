@@ -28,6 +28,20 @@ function setClientAuthCookie(active: boolean) {
   document.cookie = `auth_hint=${active ? "1" : "0"}; Path=/; Max-Age=${active ? 604800 : 0}; SameSite=Lax`;
 }
 
+/** Drop any locally cached auth material (storage + cookies). */
+function clearClientAuthStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.clear();
+  document.cookie.split(";").forEach((cookie) => {
+    document.cookie = cookie
+      .replace(/^ +/, "")
+      .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+  });
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [status, setStatus] = React.useState<AuthStatus>("loading");
@@ -45,14 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setClientAuthCookie(false);
       // Clear any stale auth data on public routes
-      if (typeof window !== "undefined") {
-        localStorage.clear();
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-      }
+      clearClientAuthStorage();
       return;
     }
 
@@ -69,14 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setStatus("unauthenticated");
       setClientAuthCookie(false);
-      if (typeof window !== "undefined") {
-        localStorage.clear();
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-      }
+      clearClientAuthStorage();
       if (currentPathname !== "/login" && currentPathname !== "/register") {
         router.replace("/login");
       }
@@ -101,14 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setStatus("unauthenticated");
       setClientAuthCookie(false);
-      if (typeof window !== "undefined") {
-        localStorage.clear();
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-      }
+      clearClientAuthStorage();
       // Only show toast if not already on login page
       if (pathname !== "/login" && pathname !== "/register") {
         toast.error("Your session expired. Please log in again.");

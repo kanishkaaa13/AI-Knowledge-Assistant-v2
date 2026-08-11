@@ -3,6 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { extractErrorMessage } from "@/lib/errors";
+
 import {
   deleteDocument,
   getDocumentPreview,
@@ -25,6 +28,36 @@ export function useDocuments(params?: {
   });
 }
 
+export const DOCUMENT_LIBRARY_PAGE_SIZE = 12;
+
+/** Debounced, paginated document listing shared by the sidebar panel and its modal. */
+export function useDocumentLibrary({
+  page,
+  search,
+  favoritesOnly,
+  pageSize = DOCUMENT_LIBRARY_PAGE_SIZE
+}: {
+  page: number;
+  search: string;
+  favoritesOnly: boolean;
+  pageSize?: number;
+}) {
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const query = useDocuments({
+    page,
+    page_size: pageSize,
+    search: debouncedSearch || undefined,
+    favorites_only: favoritesOnly
+  });
+
+  return {
+    documents: query.data?.items ?? [],
+    isLoading: query.isLoading,
+    pageSize: query.data?.page_size ?? pageSize,
+    total: query.data?.total ?? 0
+  };
+}
+
 export function useUploadDocument() {
   const queryClient = useQueryClient();
 
@@ -45,16 +78,8 @@ export function useUploadDocument() {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success("Document uploaded and indexed.");
     },
-    onError(error: any) {
-      const detail = error?.response?.data?.detail 
-        || (error instanceof Error ? error.message : null) 
-        || (typeof error === "string" ? error : null);
-      
-      const message = detail 
-        ? (typeof detail === "string" ? detail : JSON.stringify(detail)) 
-        : "Upload failed.";
-        
-      toast.error(message);
+    onError(error: unknown) {
+      toast.error(extractErrorMessage(error, "Upload failed."));
     }
   });
 }
@@ -68,16 +93,8 @@ export function useDeleteDocument() {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success("Document deleted.");
     },
-    onError(error: any) {
-      const detail = error?.response?.data?.detail 
-        || (error instanceof Error ? error.message : null) 
-        || (typeof error === "string" ? error : null);
-      
-      const message = detail 
-        ? (typeof detail === "string" ? detail : JSON.stringify(detail)) 
-        : "Unable to delete document.";
-        
-      toast.error(message);
+    onError(error: unknown) {
+      toast.error(extractErrorMessage(error, "Unable to delete document."));
     }
   });
 }

@@ -7,6 +7,31 @@ from sqlalchemy.orm import Session
 from app.models.document_chunk import DocumentChunk
 from app.models.uploaded_document import UploadedDocument
 from app.repositories.base import BaseRepository
+from app.repositories.chunk import DocumentChunkRepository
+
+
+def _apply_document_filters(
+    statement,
+    *,
+    search: str | None,
+    tag: str | None,
+    favorites_only: bool,
+):
+    if search:
+        pattern = f"%{search}%"
+        statement = statement.where(
+            or_(
+                UploadedDocument.title.ilike(pattern),
+                UploadedDocument.file_name.ilike(pattern),
+                UploadedDocument.extracted_text.ilike(pattern),
+                UploadedDocument.ai_summary.ilike(pattern),
+            )
+        )
+    if tag:
+        statement = statement.where(UploadedDocument.tags.ilike(f"%{tag}%"))
+    if favorites_only:
+        statement = statement.where(UploadedDocument.is_favorite.is_(True))
+    return statement
 
 
 class DocumentRepository(BaseRepository[UploadedDocument]):
@@ -23,22 +48,12 @@ class DocumentRepository(BaseRepository[UploadedDocument]):
         tag: str | None = None,
         favorites_only: bool = False,
     ) -> list[UploadedDocument]:
-        statement = select(UploadedDocument).where(UploadedDocument.user_id == user_id)
-        if search:
-            pattern = f"%{search}%"
-            statement = statement.where(
-                or_(
-                    UploadedDocument.title.ilike(pattern),
-                    UploadedDocument.file_name.ilike(pattern),
-                    UploadedDocument.extracted_text.ilike(pattern),
-                    UploadedDocument.ai_summary.ilike(pattern),
-                )
-            )
-        if tag:
-            statement = statement.where(UploadedDocument.tags.ilike(f"%{tag}%"))
-        if favorites_only:
-            statement = statement.where(UploadedDocument.is_favorite.is_(True))
-
+        statement = _apply_document_filters(
+            select(UploadedDocument).where(UploadedDocument.user_id == user_id),
+            search=search,
+            tag=tag,
+            favorites_only=favorites_only,
+        )
         statement = (
             statement.order_by(UploadedDocument.updated_at.desc())
             .offset((page - 1) * page_size)
@@ -54,21 +69,12 @@ class DocumentRepository(BaseRepository[UploadedDocument]):
         tag: str | None = None,
         favorites_only: bool = False,
     ) -> int:
-        statement = select(func.count(UploadedDocument.id)).where(UploadedDocument.user_id == user_id)
-        if search:
-            pattern = f"%{search}%"
-            statement = statement.where(
-                or_(
-                    UploadedDocument.title.ilike(pattern),
-                    UploadedDocument.file_name.ilike(pattern),
-                    UploadedDocument.extracted_text.ilike(pattern),
-                    UploadedDocument.ai_summary.ilike(pattern),
-                )
-            )
-        if tag:
-            statement = statement.where(UploadedDocument.tags.ilike(f"%{tag}%"))
-        if favorites_only:
-            statement = statement.where(UploadedDocument.is_favorite.is_(True))
+        statement = _apply_document_filters(
+            select(func.count(UploadedDocument.id)).where(UploadedDocument.user_id == user_id),
+            search=search,
+            tag=tag,
+            favorites_only=favorites_only,
+        )
         return int(self.db.scalar(statement) or 0)
 
     def get_by_user(self, document_id: uuid.UUID, user_id: uuid.UUID) -> UploadedDocument | None:
@@ -88,12 +94,7 @@ class DocumentRepository(BaseRepository[UploadedDocument]):
         return self.db.scalar(statement)
 
     def list_chunks(self, document_id: uuid.UUID) -> list[DocumentChunk]:
-        statement = (
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-            .order_by(DocumentChunk.chunk_index.asc())
-        )
-        return list(self.db.scalars(statement).all())
+        return DocumentChunkRepository(self.db).list_by_document(document_id)
 
     def count_by_user(self, user_id: uuid.UUID) -> int:
         statement = select(func.count(UploadedDocument.id)).where(UploadedDocument.user_id == user_id)

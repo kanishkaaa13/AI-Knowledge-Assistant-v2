@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import uuid
 from dataclasses import dataclass
-from io import BytesIO
 from pathlib import Path
 
-from docx import Document as DocxDocument
 from cryptography.fernet import InvalidToken
 from fastapi import HTTPException, UploadFile, status
-from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -19,6 +15,8 @@ from app.core.sanitize import ensure_present, sanitize_text
 from app.models.uploaded_document import UploadedDocument
 from app.models.user import User
 from app.repositories.document import DocumentRepository
+from app.services import text_extraction
+from app.services.file_storage import resolve_user_upload_dir, sanitize_file_name
 
 
 MAX_PREVIEW_LENGTH = 2400
@@ -38,44 +36,19 @@ class ExtractedDocumentData:
     encrypted_size: int
 
 
-def _sanitize_file_name(file_name: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", file_name).strip("._-")
-    return cleaned or "document"
-
-
 def _extract_text(file_extension: str, file_bytes: bytes) -> tuple[str, int | None]:
-    if file_extension in {".txt", ".md"}:
-        try:
-            return file_bytes.decode("utf-8"), None
-        except UnicodeDecodeError:
-            return file_bytes.decode("latin-1"), None
-
-    if file_extension == ".pdf":
-        reader = PdfReader(BytesIO(file_bytes))
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
-        return text, len(reader.pages)
-
-    if file_extension == ".docx":
-        document = DocxDocument(BytesIO(file_bytes))
-        text = "\n".join(paragraph.text for paragraph in document.paragraphs)
-        return text, len(document.paragraphs)
-
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Unsupported file type.",
-    )
-
-
-def _resolve_upload_dir(user_id: uuid.UUID) -> Path:
-    upload_root = Path(settings.UPLOAD_ROOT_DIR)
-    user_dir = upload_root / str(user_id)
-    user_dir.mkdir(parents=True, exist_ok=True)
-    return user_dir
+    try:
+        return text_extraction.extract_text(file_extension, file_bytes)
+    except text_extraction.UnsupportedFileTypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type.",
+        ) from exc
 
 
 async def parse_upload(file: UploadFile, user_id: uuid.UUID) -> ExtractedDocumentData:
     original_name = file.filename or "document"
-    safe_name = _sanitize_file_name(original_name)
+    safe_name = sanitize_file_name(original_name)
     extension = Path(safe_name).suffix.lower()
 
     if extension not in settings.ALLOWED_UPLOAD_EXTENSIONS:
@@ -117,7 +90,7 @@ async def parse_upload(file: UploadFile, user_id: uuid.UUID) -> ExtractedDocumen
             detail="File content type does not match the selected extension.",
         )
 
-    user_dir = _resolve_upload_dir(user_id)
+    user_dir = resolve_user_upload_dir(user_id)
     stored_name = f"{checksum[:16]}-{safe_name}.bin"
     file_path = user_dir / stored_name
     encrypted_bytes = encryption_service.encrypt_bytes(file_bytes)

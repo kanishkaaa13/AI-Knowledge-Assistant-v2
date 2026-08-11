@@ -24,9 +24,11 @@ class InMemoryRateLimiter:
                 bucket.popleft()
 
             if len(bucket) >= limit:
+                retry_after = int(max(1.0, (bucket[0] + window_seconds) - now))
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail="Too many requests. Please slow down and try again shortly.",
+                    headers={"Retry-After": str(retry_after)},
                 )
 
             bucket.append(now)
@@ -50,11 +52,12 @@ async def apply_rate_limit(
     scope: str,
     limit: int,
     user_id: str | None = None,
+    window_seconds: int | None = None,
 ) -> None:
     identity = user_id or client_identifier(request)
     key = f"{scope}:{identity}"
     await rate_limiter.check(
         key,
         limit=limit,
-        window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
+        window_seconds=window_seconds or settings.RATE_LIMIT_WINDOW_SECONDS,
     )

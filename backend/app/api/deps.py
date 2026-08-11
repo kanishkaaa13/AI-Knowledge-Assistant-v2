@@ -5,7 +5,24 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_access_token
 from app.db.session import get_db
+from app.models.uploaded_document import UploadedDocument
 from app.models.user import User
+from app.repositories.document import DocumentRepository
+
+
+def get_owned_document(
+    db: Session,
+    document_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> UploadedDocument:
+    """Fetch a document belonging to the user, or raise 404."""
+    document = DocumentRepository(db).get_by_user(document_id, user_id)
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+    return document
 
 
 def get_current_user(
