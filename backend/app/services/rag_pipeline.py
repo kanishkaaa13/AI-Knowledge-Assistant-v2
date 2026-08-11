@@ -230,10 +230,12 @@ class RAGIngestionService:
         parser = StoredDocumentParser()
         pages = parser.parse(document)
 
-        # Fallback to single page using extracted text if parsing returns empty list
+        # If parsing returns empty list, fail with clear error
         if not pages:
-            from app.services.document_parser import ParsedDocumentPage
-            pages = [ParsedDocumentPage(page_number=1, text=document.extracted_text or "")]
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Document parsing returned no pages. The file may be corrupted or in an unsupported format."
+            )
 
         # Detect sections from full document text
         full_text = document.extracted_text or ""

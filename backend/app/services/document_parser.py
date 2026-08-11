@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from io import BytesIO
 
 from docx import Document as DocxDocument
 from pypdf import PdfReader
+from fastapi import HTTPException
 
 from app.models.uploaded_document import UploadedDocument
 from app.services.document_upload import read_encrypted_document_bytes
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -21,9 +25,13 @@ class StoredDocumentParser:
     def parse(self, document: UploadedDocument) -> list[ParsedDocumentPage]:
         try:
             file_bytes = read_encrypted_document_bytes(document)
-        except Exception as e:
-            print(f"[PARSER ERROR] Decryption failed for document {document.id}: {e}")
-            return []
+        except HTTPException as e:
+            # Log the error and raise with clear message
+            logger.error(f"[PARSER] Failed to read document {document.id}: {e.detail}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Document file cannot be read: {e.detail}. The file may be corrupted or encryption may have failed during upload."
+            ) from e
 
         extension = document.file_extension.lower()
         if extension == ".pdf":
