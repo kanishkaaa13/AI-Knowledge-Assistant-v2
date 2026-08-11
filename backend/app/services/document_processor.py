@@ -11,6 +11,7 @@ from typing import Any
 from docx import Document as DocxDocument
 from pypdf import PdfReader
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
 from app.core.config import settings
 from app.core.crypto import encryption_service
@@ -43,28 +44,34 @@ class DocumentProcessor:
             file_extension: File extension (e.g., .pdf, .docx, .txt, .md)
 
         Returns:
-            Tuple of (extracted_text, page_count or None)
-
-        Raises:
-            ValueError: If file type is unsupported
+            Tuple of (extracted_text, page_count)
         """
-        if file_extension in {".txt", ".md"}:
-            try:
-                return file_bytes.decode("utf-8"), None
-            except UnicodeDecodeError:
-                return file_bytes.decode("latin-1"), None
-
         if file_extension == ".pdf":
-            reader = PdfReader(BytesIO(file_bytes))
-            text = "\n".join(page.extract_text() or "" for page in reader.pages)
-            return text, len(reader.pages)
+            try:
+                reader = PdfReader(BytesIO(file_bytes))
+                text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                return text, len(reader.pages)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid PDF file: {str(e)}. The file may be corrupted or not a valid PDF."
+                ) from e
 
         if file_extension == ".docx":
-            document = DocxDocument(BytesIO(file_bytes))
-            text = "\n".join(paragraph.text for paragraph in document.paragraphs)
-            return text, len(document.paragraphs)
+            try:
+                document = DocxDocument(BytesIO(file_bytes))
+                text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+                return text, len(document.paragraphs)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid DOCX file: {str(e)}. The file may be corrupted or not a valid DOCX."
+                ) from e
 
-        raise ValueError(f"Unsupported file type: {file_extension}")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type: {file_extension}. Supported types are: .pdf, .docx"
+        )
 
     def chunk_text(self, text: str) -> list[str]:
         """
