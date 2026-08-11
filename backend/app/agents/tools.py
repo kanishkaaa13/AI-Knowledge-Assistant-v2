@@ -18,6 +18,54 @@ from app.services.vector_store import get_vector_store_service
 logger = logging.getLogger(__name__)
 
 
+class InvalidDocumentIdsError(ValueError):
+    """Raised when a tool receives no usable document IDs."""
+
+
+def _require_user_id(tool_name: str) -> uuid.UUID:
+    """Read the per-request user id from the agent ContextVar."""
+    from app.agents.router_agent import _current_user_id
+
+    user_id = _current_user_id.get()
+    logger.info("[%s] Extracted user_id from ContextVar: %s", tool_name, user_id)
+    if not user_id:
+        raise ValueError("user_id missing from ContextVar - agent not properly configured")
+
+    uid = uuid.UUID(user_id)
+    logger.info("[%s] UUID parsed: %s", tool_name, uid)
+    return uid
+
+
+def _user_stub(user_id: uuid.UUID) -> User:
+    """Build a detached User carrying only the id, as required by the services."""
+    user = User()
+    user.id = user_id
+    return user
+
+
+def _parse_document_ids(document_ids: str) -> list[str]:
+    """Split and validate a comma-separated list of document UUIDs."""
+    candidates = [doc_id.strip() for doc_id in document_ids.split(",") if doc_id.strip()]
+    if not candidates:
+        raise InvalidDocumentIdsError(
+            "Error: No valid document IDs provided. Please provide comma-separated document IDs."
+        )
+
+    valid_doc_ids = []
+    for doc_id in candidates:
+        try:
+            uuid.UUID(doc_id)
+            valid_doc_ids.append(doc_id)
+        except ValueError:
+            logger.warning("Invalid UUID in document_ids: %s", doc_id)
+
+    if not valid_doc_ids:
+        raise InvalidDocumentIdsError(
+            "Error: No valid UUIDs found in document_ids. Please provide valid document UUIDs."
+        )
+    return valid_doc_ids
+
+
 @tool
 async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | None = None) -> str:
     """Search documents using semantic similarity (vector embeddings). Best for conceptual queries, synonyms, and meaning-based retrieval.
@@ -43,20 +91,7 @@ async def search_documents(query: str, top_k: int = 4, config: RunnableConfig | 
         return "Error: Search query cannot be empty. Please provide a meaningful search term."
     
     try:
-        # Get user_id from ContextVar (async-safe, isolated per request/task)
-        import contextvars
-        from app.agents.router_agent import _current_user_id
-        
-        user_id = _current_user_id.get()
-        print(f"[search_documents] {timestamp} Extracted user_id from ContextVar: {user_id}")
-        logger.info(f"[search_documents] {timestamp} Extracted user_id from ContextVar: {user_id}")
-        
-        if not user_id:
-            raise ValueError("user_id missing from ContextVar - agent not properly configured")
-        
-        uid = uuid.UUID(user_id)
-        print(f"[search_documents] UUID parsed: {uid}")
-        logger.info(f"[search_documents] UUID parsed: {uid}")
+        uid = _require_user_id("search_documents")
         
         vector_store = get_vector_store_service()
         results = await vector_store.similarity_search(user_id=uid, query=query, top_k=top_k)
@@ -102,26 +137,12 @@ async def summarize_document(
     print(f"[summarize_document] {timestamp} FUNCTION CALLED with doc_id={doc_id}, query={query}")
     logger.info(f"[summarize_document] {timestamp} FUNCTION CALLED with doc_id={doc_id}, query={query}")
     try:
-        # Get user_id from ContextVar (async-safe, isolated per request/task)
-        import contextvars
-        from app.agents.router_agent import _current_user_id
-        
-        user_id = _current_user_id.get()
-        print(f"[summarize_document] {timestamp} Extracted user_id from ContextVar: {user_id}")
-        logger.info(f"[summarize_document] {timestamp} Extracted user_id from ContextVar: {user_id}")
-        
-        if not user_id:
-            raise ValueError("user_id missing from ContextVar - agent not properly configured")
-        
-        uid = uuid.UUID(user_id)
-        print(f"[summarize_document] UUID parsed: {uid}")
-        logger.info(f"[summarize_document] UUID parsed: {uid}")
+        uid = _require_user_id("summarize_document")
         
         vector_store = get_vector_store_service()
         feature_service = AssistantFeatureService(vector_store)
 
-        user = User()
-        user.id = uid
+        user = _user_stub(uid)
 
         res = await feature_service.summarize_documents(
             user=user,
@@ -167,20 +188,7 @@ async def keyword_search(query: str, top_k: int = 4) -> str:
     print(f"[keyword_search] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
     logger.info(f"[keyword_search] {timestamp} FUNCTION CALLED with query={query}, top_k={top_k}")
     try:
-        # Get user_id from ContextVar (async-safe, isolated per request/task)
-        import contextvars
-        from app.agents.router_agent import _current_user_id
-        
-        user_id = _current_user_id.get()
-        print(f"[keyword_search] {timestamp} Extracted user_id from ContextVar: {user_id}")
-        logger.info(f"[keyword_search] {timestamp} Extracted user_id from ContextVar: {user_id}")
-        
-        if not user_id:
-            raise ValueError("user_id missing from ContextVar - agent not properly configured")
-        
-        uid = uuid.UUID(user_id)
-        print(f"[keyword_search] UUID parsed: {uid}")
-        logger.info(f"[keyword_search] UUID parsed: {uid}")
+        uid = _require_user_id("keyword_search")
         bm25_service = get_bm25_service()
         results = bm25_service.search(user_id=uid, query=query, top_k=top_k)
         print(f"[keyword_search] BM25 search returned {len(results) if results else 0} results for user {uid}")
@@ -223,36 +231,14 @@ async def flashcard_generator(
         model: LLM model name to use.
     """
     try:
-        # Get user_id from ContextVar (async-safe, isolated per request/task)
-        import contextvars
-        from app.agents.router_agent import _current_user_id
-        
-        user_id = _current_user_id.get()
-        if not user_id:
-            raise ValueError("user_id missing from ContextVar - agent not properly configured")
-        uid = uuid.UUID(user_id)
-        
-        # Parse and validate document_ids
-        doc_ids_list = [doc_id.strip() for doc_id in document_ids.split(",") if doc_id.strip()]
-        
-        if not doc_ids_list:
-            return "Error: No valid document IDs provided. Please provide comma-separated document IDs."
-        
-        # Validate each ID is a valid UUID
-        valid_doc_ids = []
-        for doc_id in doc_ids_list:
-            try:
-                uuid.UUID(doc_id)
-                valid_doc_ids.append(doc_id)
-            except ValueError:
-                logger.warning(f"Invalid UUID in document_ids: {doc_id}")
-        
-        if not valid_doc_ids:
-            return "Error: No valid UUIDs found in document_ids. Please provide valid document UUIDs."
+        uid = _require_user_id("flashcard_generator")
+        try:
+            valid_doc_ids = _parse_document_ids(document_ids)
+        except InvalidDocumentIdsError as exc:
+            return str(exc)
 
         with db_manager.session_factory() as db:
-            user = User()
-            user.id = uid
+            user = _user_stub(uid)
             flashcard_service = FlashcardService(db)
             flashcards = await flashcard_service.generate_flashcards(
                 user=user,
@@ -291,38 +277,16 @@ async def quiz_generator(
         model: LLM model name to use.
     """
     try:
-        # Get user_id from ContextVar (async-safe, isolated per request/task)
-        import contextvars
-        from app.agents.router_agent import _current_user_id
-        
-        user_id = _current_user_id.get()
-        if not user_id:
-            raise ValueError("user_id missing from ContextVar - agent not properly configured")
-        uid = uuid.UUID(user_id)
-        
-        # Parse and validate document_ids
-        doc_ids_list = [doc_id.strip() for doc_id in document_ids.split(",") if doc_id.strip()]
-        
-        if not doc_ids_list:
-            return "Error: No valid document IDs provided. Please provide comma-separated document IDs."
-        
-        # Validate each ID is a valid UUID
-        valid_doc_ids = []
-        for doc_id in doc_ids_list:
-            try:
-                uuid.UUID(doc_id)
-                valid_doc_ids.append(doc_id)
-            except ValueError:
-                logger.warning(f"Invalid UUID in document_ids: {doc_id}")
-        
-        if not valid_doc_ids:
-            return "Error: No valid UUIDs found in document_ids. Please provide valid document UUIDs."
+        uid = _require_user_id("quiz_generator")
+        try:
+            valid_doc_ids = _parse_document_ids(document_ids)
+        except InvalidDocumentIdsError as exc:
+            return str(exc)
 
         vector_store = get_vector_store_service()
         feature_service = AssistantFeatureService(vector_store)
 
-        user = User()
-        user.id = uid
+        user = _user_stub(uid)
 
         res = await feature_service.generate_quiz(
             user=user,
@@ -363,8 +327,7 @@ def export_notes(conversation_id: str, config: RunnableConfig | None = None) -> 
         conv_id = uuid.UUID(conversation_id)
 
         with db_manager.session_factory() as db:
-            user = User()
-            user.id = uid
+            user = _user_stub(uid)
             chat_memory = ChatMemoryService(db)
             exported = chat_memory.export_conversation(user=user, conversation_id=conv_id)
 

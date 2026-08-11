@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import uuid
 from dataclasses import dataclass
-from io import BytesIO
 from pathlib import Path
-from typing import Any
 
-from docx import Document as DocxDocument
-from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.document_chunk import DocumentChunk
 from app.models.uploaded_document import UploadedDocument
+from app.services import chunking, file_storage, text_extraction
 
 
 @dataclass
@@ -47,23 +43,7 @@ class DocumentProcessor:
         Raises:
             ValueError: If file type is unsupported
         """
-        if file_extension in {".txt", ".md"}:
-            try:
-                return file_bytes.decode("utf-8"), None
-            except UnicodeDecodeError:
-                return file_bytes.decode("latin-1"), None
-
-        if file_extension == ".pdf":
-            reader = PdfReader(BytesIO(file_bytes))
-            text = "\n".join(page.extract_text() or "" for page in reader.pages)
-            return text, len(reader.pages)
-
-        if file_extension == ".docx":
-            document = DocxDocument(BytesIO(file_bytes))
-            text = "\n".join(paragraph.text for paragraph in document.paragraphs)
-            return text, len(document.paragraphs)
-
-        raise ValueError(f"Unsupported file type: {file_extension}")
+        return text_extraction.extract_text(file_extension, file_bytes)
 
     def chunk_text(self, text: str) -> list[str]:
         """
@@ -75,44 +55,7 @@ class DocumentProcessor:
         Returns:
             List of text chunks
         """
-        if not text or not text.strip():
-            return []
-
-        # Normalize whitespace
-        text = re.sub(r"\s+", " ", text.strip())
-
-        chunks = []
-        start = 0
-        text_length = len(text)
-
-        while start < text_length:
-            # Calculate end position
-            end = start + self.chunk_size
-
-            # If we're not at the end, try to find a good break point
-            if end < text_length:
-                # Look for sentence boundaries (., !, ?) followed by space
-                for i in range(end, max(start + self.chunk_size // 2, start), -1):
-                    if text[i] in ".!?" and i + 1 < text_length and text[i + 1] == " ":
-                        end = i + 1
-                        break
-                else:
-                    # If no sentence boundary, look for word boundary
-                    for i in range(end, max(start + self.chunk_size // 2, start), -1):
-                        if text[i] == " ":
-                            end = i
-                            break
-
-            chunk = text[start:end].strip()
-            if chunk:
-                chunks.append(chunk)
-
-            # Move start position with overlap
-            start = end - self.chunk_overlap
-            if start < 0:
-                start = 0
-
-        return chunks
+        return chunking.chunk_text(text, self.chunk_size, self.chunk_overlap)
 
     def save_file(self, file_bytes: bytes, user_id: uuid.UUID, file_name: str) -> tuple[str, str]:
         """
@@ -126,12 +69,10 @@ class DocumentProcessor:
         Returns:
             Tuple of (file_path, checksum)
         """
-        upload_root = Path(settings.UPLOAD_ROOT_DIR)
-        user_dir = upload_root / str(user_id)
-        user_dir.mkdir(parents=True, exist_ok=True)
+        user_dir = file_storage.resolve_user_upload_dir(user_id)
 
         checksum = hashlib.sha256(file_bytes).hexdigest()
-        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "-", file_name).strip("._-")
+        safe_name = file_storage.sanitize_file_name(file_name)
         stored_name = f"{checksum[:16]}-{safe_name}"
         file_path = user_dir / stored_name
 

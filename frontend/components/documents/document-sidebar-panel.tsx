@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Eye, FileText, Heart, RefreshCcw, Search, Tag, Trash2, UploadCloud } from "lucide-react";
 
+import { formatBytes } from "@/lib/format";
 import type { UploadedDocument } from "@/types/api";
 
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
@@ -11,19 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDeleteDocument, useReindexDocument, useUpdateDocumentMetadata } from "@/hooks/use-documents";
 import { useVirtualList } from "@/hooks/use-virtual-list";
-
-function formatBytes(bytes: number | null) {
-  if (!bytes) {
-    return "Unknown size";
-  }
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function DocumentSidebarPanel({
   documents,

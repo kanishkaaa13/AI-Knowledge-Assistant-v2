@@ -20,6 +20,8 @@ import {
   semanticDocumentSearch,
   summarizeAssistantKnowledge
 } from "@/lib/api";
+import { mapCitations } from "@/lib/citations";
+import { extractErrorMessage } from "@/lib/errors";
 import { streamAssistantChat } from "@/lib/chat-stream";
 import type { StreamPayload } from "@/lib/chat-stream";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -405,8 +407,8 @@ export function useChat() {
         setSearchResults(searchData);
       }
     },
-    onError(error: any) {
-      toast.error(error?.response?.data?.detail ?? "Unable to run assistant tool.");
+    onError(error: unknown) {
+      toast.error(extractErrorMessage(error, "Unable to run assistant tool."));
     }
   });
 
@@ -570,15 +572,7 @@ export function useChat() {
               });
             },
             onContext(data) {
-              const citations = (data.chunks || []).map((chunk: any) => ({
-                chunk_id: chunk.metadata?.chunk_id || "",
-                document_id: chunk.metadata?.document_id || "",
-                filename: chunk.metadata?.filename || "Unknown Document",
-                page: chunk.metadata?.page ? parseInt(chunk.metadata.page) : 1,
-                chunk_index: chunk.metadata?.chunk_index ?? 0,
-                paragraph_index: chunk.metadata?.paragraph_index ? parseInt(chunk.metadata.paragraph_index) : 1,
-                content: chunk.content || ""
-              }));
+              const citations = mapCitations(data.chunks);
 
               updateConversationCache(conversationId!, (current) => {
                 if (!current) return current as any;
@@ -626,15 +620,7 @@ export function useChat() {
             onDone(data) {
               const finalId = data.conversation_id || conversationId;
               
-              const citations = (data.citations || []).map((chunk: any) => ({
-                chunk_id: chunk.metadata?.chunk_id || "",
-                document_id: chunk.metadata?.document_id || "",
-                filename: chunk.metadata?.filename || "Unknown Document",
-                page: chunk.metadata?.page ? parseInt(chunk.metadata.page) : 1,
-                chunk_index: chunk.metadata?.chunk_index ?? 0,
-                paragraph_index: chunk.metadata?.paragraph_index ? parseInt(chunk.metadata.paragraph_index) : 1,
-                content: chunk.content || ""
-              }));
+              const citations = mapCitations(data.citations);
 
               if (data.suggestions) {
                 setLocalSuggestions(data.suggestions);
@@ -711,13 +697,8 @@ export function useChat() {
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail 
-        || (error instanceof Error ? error.message : null)
-        || (typeof error === "string" ? error : null)
-        || "An unexpected error occurred";
-        
-      const finalMessage = typeof errorMessage !== "string" ? JSON.stringify(errorMessage) : errorMessage;
-      
+      const finalMessage = extractErrorMessage(error, "An unexpected error occurred");
+
       updateAssistantMessage(() => `⚠️ Error: ${finalMessage}`, true);
       toast.error(finalMessage);
     }

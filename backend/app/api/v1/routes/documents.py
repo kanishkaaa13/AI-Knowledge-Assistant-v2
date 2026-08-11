@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_owned_document
 from app.core.config import settings
 from app.core.rate_limit import apply_rate_limit
 from app.core.sanitize import ensure_present, sanitize_text
@@ -204,10 +204,7 @@ async def get_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UploadedDocumentRead:
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    document = get_owned_document(db, document_id, current_user.id)
     return UploadedDocumentRead.model_validate(document)
 
 
@@ -218,10 +215,7 @@ async def update_document_metadata(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UploadedDocumentRead:
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    document = get_owned_document(db, document_id, current_user.id)
 
     cleaned_tags = sorted({sanitize_text(tag, max_length=32).lower() for tag in payload.tags if tag.strip()})
     document.tags = ",".join(cleaned_tags) if cleaned_tags else None
@@ -239,10 +233,7 @@ async def get_document_preview(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DocumentPreviewRead:
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    document = get_owned_document(db, document_id, current_user.id)
 
     return DocumentPreviewRead(
         id=document.id,
@@ -266,9 +257,8 @@ async def download_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document or not document.file_path:
+    document = get_owned_document(db, document_id, current_user.id)
+    if not document.file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     file_bytes = read_encrypted_document_bytes(document)
@@ -285,10 +275,7 @@ async def reindex_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UploadedDocumentRead:
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    document = get_owned_document(db, document_id, current_user.id)
 
     print(f"[REINDEX] Starting reindex for doc {document.id} ({document.file_name!r})")
     print(f"[REINDEX] Extracted text length: {len(document.extracted_text or '')} chars")
@@ -315,10 +302,7 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    document = get_owned_document(db, document_id, current_user.id)
 
     delete_document_file(document)
     RAGIngestionService(db).delete_document_index(document.id)
@@ -333,10 +317,7 @@ async def get_document_file(
     db: Session = Depends(get_db),
 ) -> FileResponse:
     """Serve the actual file for PDF preview."""
-    repository = DocumentRepository(db)
-    document = repository.get_by_user(document_id, current_user.id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    document = get_owned_document(db, document_id, current_user.id)
     
     if not document.file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File path not found in database.")

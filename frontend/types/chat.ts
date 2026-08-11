@@ -6,6 +6,7 @@ export interface Citation {
   filename: string;
   page: number;
   chunk_index: number;
+  paragraph_index?: number;
   content: string;
 }
 

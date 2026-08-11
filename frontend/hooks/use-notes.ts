@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+import { extractErrorMessage } from "@/lib/errors";
 import {
   listNotes,
   createNote,
@@ -27,8 +29,8 @@ export function useNotes(search?: string, pinnedOnly = false) {
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
       toast.success("Note created successfully");
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to create note");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to create note"));
     }
   });
 
@@ -38,8 +40,8 @@ export function useNotes(search?: string, pinnedOnly = false) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to save note");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to save note"));
     }
   });
 
@@ -49,8 +51,8 @@ export function useNotes(search?: string, pinnedOnly = false) {
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
       toast.success("Note deleted successfully");
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to delete note");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to delete note"));
     }
   });
 
@@ -59,8 +61,8 @@ export function useNotes(search?: string, pinnedOnly = false) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to pin/unpin note");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to pin/unpin note"));
     }
   });
 

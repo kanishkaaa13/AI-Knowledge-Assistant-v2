@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+import { extractErrorMessage } from "@/lib/errors";
 import {
   listFlashcards,
   createFlashcard,
@@ -26,8 +28,8 @@ export function useFlashcards(documentId?: string) {
       void queryClient.invalidateQueries({ queryKey: ["flashcards"] });
       toast.success("Flashcard added");
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to create flashcard");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to create flashcard"));
     }
   });
 
@@ -37,8 +39,8 @@ export function useFlashcards(documentId?: string) {
       void queryClient.invalidateQueries({ queryKey: ["flashcards"] });
       toast.success(`Generated ${data.length} flashcards successfully!`);
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to generate flashcards");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to generate flashcards"));
     }
   });
 
@@ -48,8 +50,8 @@ export function useFlashcards(documentId?: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["flashcards"] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to update flashcard");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to update flashcard"));
     }
   });
 
@@ -59,8 +61,8 @@ export function useFlashcards(documentId?: string) {
       void queryClient.invalidateQueries({ queryKey: ["flashcards"] });
       toast.success("Flashcard deleted");
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to delete flashcard");
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err, "Failed to delete flashcard"));
     }
   });
 

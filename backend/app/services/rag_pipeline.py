@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from collections import Counter
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,6 +15,7 @@ from app.models.user import User
 from app.repositories.chunk import DocumentChunkRepository
 from app.repositories.document import DocumentRepository
 from app.schemas.rag import RetrievedChunk, RetrievalResponse
+from app.services.boilerplate import is_boilerplate_chunk
 from app.services.vector_store import VectorRecord, VectorSearchResult, get_vector_store_service
 from app.services.document_parser import StoredDocumentParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -76,128 +76,6 @@ def detect_sections(text: str, file_type: str = ".pdf") -> list[tuple[str, int, 
         pass
     
     return sections
-
-
-def _chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> list[str]:
-    """Simple word-boundary text chunker."""
-    import re
-    text = re.sub(r"\s+", " ", text.strip())
-    chunks: list[str] = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        if end < len(text):
-            # find sentence boundary
-            for i in range(end, max(start + chunk_size // 2, start), -1):
-                if text[i] in ".!?" and i + 1 < len(text) and text[i + 1] == " ":
-                    end = i + 1
-                    break
-            else:
-                for i in range(end, max(start + chunk_size // 2, start), -1):
-                    if text[i] == " ":
-                        end = i
-                        break
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        start = end - chunk_overlap
-        if start < 0:
-            start = 0
-    return chunks
-
-
-def check_keyword_patterns(content: str) -> bool:
-    """Check if content matches boilerplate keyword patterns."""
-    patterns = [
-        r"table of contents",
-        r"contents\s*\.\s*",  # "Contents . . ." pattern from TOC
-        r"copyright\s*©",
-        r"all rights reserved",
-        r"isbn\s*\d",
-        r"preface",  # More flexible - not standalone
-        r"foreword",
-        r"acknowledgments",
-        r"page\s+[ivx]+\s*\.",  # Roman numeral pages with period
-    ]
-    content_lower = content.lower()
-    for pattern in patterns:
-        if re.search(pattern, content_lower):
-            return True
-    return False
-
-
-def check_content_density(content: str) -> bool:
-    """Check if content has low information density."""
-    words = content.split()
-    unique_words = set(word.lower() for word in words if word.strip())
-    
-    if len(content) < 50:
-        return True  # Too short
-    
-    unique_word_ratio = len(unique_words) / max(len(content), 1) * 100
-    if unique_word_ratio < 10:  # < 10 unique words per 100 chars
-        return True
-    
-    # High repetition: > 30% of words repeated
-    word_counts = Counter(word.lower() for word in words)
-    repeated_words = sum(1 for count in word_counts.values() if count > 1)
-    if len(words) > 0 and repeated_words / len(words) > 0.3:
-        return True
-    
-    return False
-
-
-def check_position_with_content(chunk_index: int, total_chunks: int) -> bool:
-    """Check position heuristic only if combined with specific boilerplate keywords."""
-    if chunk_index < 2:  # First 2 chunks
-        return True
-    if chunk_index >= total_chunks - 2:  # Last 2 chunks
-        return True
-    return False
-
-
-def is_heading_pattern(content: str) -> bool:
-    """Check if content matches heading/title patterns (should not be flagged as boilerplate)."""
-    lines = content.strip().split('\n')
-    first_line = lines[0].strip() if lines else ""
-    
-    # Markdown headers (# ## ###)
-    if re.match(r'^#+\s+\S', first_line):
-        return True
-    
-    # Numbered section headers (1.1, 2.3.4, etc.)
-    if re.match(r'^\d+(\.\d+)*\s+[A-Z]', first_line):
-        return True
-    
-    # Short lines that look like titles (all caps or title case, < 10 words)
-    words = first_line.split()
-    if len(words) <= 10 and len(words) >= 2:
-        # All caps
-        if first_line.isupper():
-            return True
-        # Title case (most words capitalized)
-        capitalized_words = sum(1 for w in words if w[0].isupper())
-        if capitalized_words / len(words) >= 0.7:
-            return True
-    
-    return False
-
-
-def is_boilerplate_chunk(content: str, chunk_index: int, total_chunks: int) -> bool:
-    """Determine if a chunk is boilerplate using revised detection logic."""
-    # Specific boilerplate keyword - always flag
-    if check_keyword_patterns(content):
-        return True
-    
-    # Position only - need very low density to flag
-    if check_position_with_content(chunk_index, total_chunks):
-        # Skip density-based flagging for headings/titles
-        if is_heading_pattern(content):
-            return False
-        if check_content_density(content):
-            return True
-    
-    return False
 
 
 class RAGIngestionService:

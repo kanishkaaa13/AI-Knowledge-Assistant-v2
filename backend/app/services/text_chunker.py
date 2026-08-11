@@ -1,11 +1,10 @@
-import re
-from collections import Counter
 from dataclasses import dataclass
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.core.config import settings
+from app.services.boilerplate import is_boilerplate_chunk
 from app.services.document_parser import ParsedDocumentPage
 
 
@@ -16,70 +15,6 @@ class ChunkedPageDocument:
     content: str
     metadata: dict
     is_boilerplate: bool = False
-
-
-def check_keyword_patterns(content: str) -> bool:
-    """Check if content matches boilerplate keyword patterns."""
-    patterns = [
-        r"table of contents",
-        r"^contents\s*$",
-        r"copyright\s*©",
-        r"all rights reserved",
-        r"isbn\s*\d",
-        r"^preface\s*$",
-        r"^foreword\s*$",
-        r"^acknowledgments\s*$",
-        r"page\s+[ivx]+",
-    ]
-    content_lower = content.lower()
-    for pattern in patterns:
-        if re.search(pattern, content_lower):
-            return True
-    return False
-
-
-def check_content_density(content: str) -> bool:
-    """Check if content has low information density."""
-    words = content.split()
-    unique_words = set(word.lower() for word in words if word.strip())
-    
-    if len(content) < 50:
-        return True  # Too short
-    
-    unique_word_ratio = len(unique_words) / max(len(content), 1) * 100
-    if unique_word_ratio < 10:  # < 10 unique words per 100 chars
-        return True
-    
-    # High repetition: > 30% of words repeated
-    word_counts = Counter(word.lower() for word in words)
-    repeated_words = sum(1 for count in word_counts.values() if count > 1)
-    if len(words) > 0 and repeated_words / len(words) > 0.3:
-        return True
-    
-    return False
-
-
-def check_position_with_content(chunk_index: int, total_chunks: int) -> bool:
-    """Check position heuristic only if combined with specific boilerplate keywords."""
-    if chunk_index < 2:  # First 2 chunks
-        return True
-    if chunk_index >= total_chunks - 2:  # Last 2 chunks
-        return True
-    return False
-
-
-def is_boilerplate_chunk(content: str, chunk_index: int, total_chunks: int) -> bool:
-    """Determine if a chunk is boilerplate using revised detection logic."""
-    # Specific boilerplate keyword - always flag
-    if check_keyword_patterns(content):
-        return True
-    
-    # Position only - need very low density to flag
-    if check_position_with_content(chunk_index, total_chunks):
-        if check_content_density(content):
-            return True
-    
-    return False
 
 
 class DocumentChunker:

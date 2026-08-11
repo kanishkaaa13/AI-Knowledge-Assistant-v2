@@ -6,29 +6,10 @@ from datetime import datetime
 from pathlib import Path
 
 from app.core.config import settings
+from app.services.llm_json import extract_json_block
 from app.services.ollama_llm import OllamaLLMService
 
 logger = logging.getLogger(__name__)
-
-
-def extract_json_block(text: str) -> str:
-    """
-    Tries to isolate a JSON substring from the LLM output.
-    """
-    text = text.strip()
-    # 1. Match code blocks starting with ```json
-    match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    # 2. Match generic code blocks starting with ```
-    match = re.search(r"```\s*(.*?)\s*```", text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    # 3. Match first array [ ... ] or object { ... }
-    match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return text
 
 
 def split_text_into_sections(text: str) -> list[dict]:

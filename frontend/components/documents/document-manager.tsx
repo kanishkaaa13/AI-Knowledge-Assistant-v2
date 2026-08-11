@@ -6,8 +6,7 @@ import { PanelRightOpen } from "lucide-react";
 import { DocumentsModal } from "@/components/documents/documents-modal";
 import { DocumentSidebarPanel } from "@/components/documents/document-sidebar-panel";
 import { Button } from "@/components/ui/button";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useDocuments } from "@/hooks/use-documents";
+import { useDocumentLibrary } from "@/hooks/use-documents";
 
 export function DocumentManager({
   selectedDocumentIds,
@@ -20,27 +19,20 @@ export function DocumentManager({
   const [page, setPage] = React.useState(1);
   const [search, setSearch] = React.useState("");
   const [favoritesOnly, setFavoritesOnly] = React.useState(false);
-  const debouncedSearch = useDebouncedValue(search, 250);
-
-  const documentsQuery = useDocuments({
-    page,
-    page_size: 12,
-    search: debouncedSearch || undefined,
-    favorites_only: favoritesOnly
-  });
+  const library = useDocumentLibrary({ page, search, favoritesOnly });
 
   return (
     <>
       <div className="hidden 2xl:flex 2xl:w-[380px] 2xl:flex-col 2xl:border-l 2xl:border-border/60 2xl:bg-card/30">
         <DocumentSidebarPanel
-          documents={documentsQuery.data?.items ?? []}
+          documents={library.documents}
           favoritesOnly={favoritesOnly}
-          isLoading={documentsQuery.isLoading}
+          isLoading={library.isLoading}
           page={page}
-          pageSize={documentsQuery.data?.page_size ?? 12}
+          pageSize={library.pageSize}
           search={search}
           selectedDocumentIds={selectedDocumentIds}
-          total={documentsQuery.data?.total ?? 0}
+          total={library.total}
           onFavoritesOnlyChange={setFavoritesOnly}
           onPageChange={setPage}
           onSearchChange={setSearch}
