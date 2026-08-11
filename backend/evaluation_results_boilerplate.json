@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-11T19:53:54.988905",
+  "timestamp": "2026-08-11T19:59:03.952459",
   "user_email": "kanishkaarde90@gmail.com",
   "user_id": "2f9c2a2c-2dac-4596-b117-6b2cffe01425",
   "model": "llama3.1",
@@ -10,22 +10,14 @@
   "results": [
     {
       "question": "What is machine learning?",
-      "answer": "Machine learning is not explicitly defined in the provided document context [Source: machine-learning-cheat-sheet.pdf, Page 1]. However, it can be inferred that machine learning is related to the concepts of representation, evaluation, and optimization mentioned in section 1.2 [Source: machine-learning-cheat-sheet.pdf, Page 1].\n\nAccording to the preface, this cheat sheet aims to help recall knowledge and ideas in machine learning, but the definition itself is not provided within the context [Source: machine-learning-cheat-sheet.pdf, Page 1].",
-      "context": "[Source: machine-learning-cheat-sheet.pdf, Page 1]\nPreface\nThis cheat sheet is a condensed version of machine learning manual, which contains many classical equations and\ndiagrams on machine learning, and aims to help you quickly recall knowledge and ideas in machine learning.\nThis cheat sheet has two signiﬁcant advantages:\n1. Clearer symbols. Mathematical formulas use quite a lot of confusing symbols. For example, X can be a set, a random\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\nDiscovering graph structure\nMatrix completion\n1.2 Three elements of a machine learning\nmodel\nModel = Representation + Evaluation + Optimization 1\n1.2.1 Representation\nIn supervised learning, a model must be represented as\na conditional probability distribution P(yjx)(usually we\ncall it classiﬁer) or a decision function f (x). The set of\nclassiﬁers(or decision functions) is called the hypothesis\nspace of the model. Choosing a representation for a model\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\nis tantamount to choosing the hypothesis space that it can\npossibly learn.\n1.2.2 Evaluation\nIn the hypothesis space, an evaluation function (also\ncalled objective function or risk function) is needed to\ndistinguish good classiﬁers(or decision functions) from\nbad ones.\n1.2.2.1 Loss function and risk function\nDeﬁnition 1.1. In order to measure how well a function\nﬁts the training data, a loss function L : Y \u0002Y !R \u00150 is\n1 Domingos, P. A few useful things to know about machine learning.",
+      "answer": "I couldn't find this information in the selected documents. The provided context only discusses elements of a machine learning model, such as representation and evaluation, but does not define what machine learning is.",
+      "context": "[Source: machine-learning-cheat-sheet.pdf, Page 1]\nDiscovering graph structure\nMatrix completion\n1.2 Three elements of a machine learning\nmodel\nModel = Representation + Evaluation + Optimization 1\n1.2.1 Representation\nIn supervised learning, a model must be represented as\na conditional probability distribution P(yjx)(usually we\ncall it classiﬁer) or a decision function f (x). The set of\nclassiﬁers(or decision functions) is called the hypothesis\nspace of the model. Choosing a representation for a model\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\nis tantamount to choosing the hypothesis space that it can\npossibly learn.\n1.2.2 Evaluation\nIn the hypothesis space, an evaluation function (also\ncalled objective function or risk function) is needed to\ndistinguish good classiﬁers(or decision functions) from\nbad ones.\n1.2.2.1 Loss function and risk function\nDeﬁnition 1.1. In order to measure how well a function\nﬁts the training data, a loss function L : Y \u0002Y !R \u00150 is\n1 Domingos, P. A few useful things to know about machine learning.",
       "retrieved_chunks": [
         {
           "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
           "filename": "machine-learning-cheat-sheet.pdf",
           "page": "1",
-          "chunk_index": 0,
-          "section": "A.5.2 BFGS",
-          "content_preview": "Preface\nThis cheat sheet is a condensed version of machine learning manual, which contains many classical equations and\ndiagrams on machine learning, and aims to help you quickly recall knowledge and ..."
-        },
-        {
-          "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
-          "filename": "machine-learning-cheat-sheet.pdf",
-          "page": "1",
-          "chunk_index": 64,
+          "chunk_index": 57,
           "section": "A.5.2 BFGS",
           "content_preview": "Discovering graph structure\nMatrix completion\n1.2 Three elements of a machine learning\nmodel\nModel = Representation + Evaluation + Optimization 1\n1.2.1 Representation\nIn supervised learning, a model m..."
         },
@@ -33,13 +25,13 @@
           "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
           "filename": "machine-learning-cheat-sheet.pdf",
           "page": "1",
-          "chunk_index": 65,
+          "chunk_index": 58,
           "section": "A.5.2 BFGS",
           "content_preview": "is tantamount to choosing the hypothesis space that it can\npossibly learn.\n1.2.2 Evaluation\nIn the hypothesis space, an evaluation function (also\ncalled objective function or risk function) is needed ..."
         }
       ],
-      "num_chunks_retrieved": 3,
-      "has_citations": true,
+      "num_chunks_retrieved": 2,
+      "has_citations": false,
       "model": "llama3.1",
       "top_k": 4,
       "document_ids": null,
@@ -47,22 +39,14 @@
     },
     {
       "question": "What are the types of machine learning?",
-      "answer": "According to the document context [Source: machine-learning-cheat-sheet.pdf, Page 1], the types of machine learning are not explicitly listed as a separate section. However, it mentions that there are \"kernel-based classiﬁers\" and probabilistic methods, but these are not presented as distinct categories.\n\nThe text does mention that SVMs (Support Vector Machines) are discussed despite being non-probabilistic, but this is more of an exception rather than a general categorization [Source: machine-learning-cheat-sheet.pdf, Page 1].\n\nTherefore, I couldn't find specific information on the types of machine learning in the provided context.",
-      "context": "[Source: machine-learning-cheat-sheet.pdf, Page 1]\nContents\nContents . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . v\nNotation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ix\n1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1\n1.1 Types of machine learning . . . . . . . . . . . . 1\n1.2 Three elements of a machine learning\nmodel . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1\n1.2.1 Representation . . . . . . . . . . . . . . 1\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\nkernel-based classiﬁers, which work as well or better than\nSVMs, using techniques such as the L1VM or RVM, dis-\ncussed in Section 14.3.2. However, we include a discus-\nsion of SVMs, despite their non-probabilistic nature, for\ntwo main reasons.\n• First, they are very popular and widely used, so all stu-\ndents of machine learning should know about them.\n• Second, they have some computational advantages\nover probabilistic methods in the structured output\ncase; see Section 19.7 TODO.\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\nis tantamount to choosing the hypothesis space that it can\npossibly learn.\n1.2.2 Evaluation\nIn the hypothesis space, an evaluation function (also\ncalled objective function or risk function) is needed to\ndistinguish good classiﬁers(or decision functions) from\nbad ones.\n1.2.2.1 Loss function and risk function\nDeﬁnition 1.1. In order to measure how well a function\nﬁts the training data, a loss function L : Y \u0002Y !R \u00150 is\n1 Domingos, P. A few useful things to know about machine learning.",
+      "answer": "The document context does not provide a comprehensive list of all types of machine learning. However, it mentions specific types such as:\n\n1. Kernel-based classiﬁers [Source: machine-learning-cheat-sheet.pdf, Page 1]\n2. Generative models [Source: machine-learning-cheat-sheet.pdf, Page 1]\n3. Discriminative models [Source: machine-learning-cheat-sheet.pdf, Page 1]\n\nIt also mentions specific techniques such as:\n\n1. L1VM or RVM [Source: machine-learning-cheat-sheet.pdf, Page 1]\n2. Semi-supervised learning [Source: machine-learning-cheat-sheet.pdf, Page 1]\n3. Probabilistic methods [Source: machine-learning-cheat-sheet.pdf, Page 1]\n\nAdditionally, the context mentions common types of cross-validation:\n\n1. K-fold cross-validation [Source: machine-learning-cheat-sheet.pdf, Page 1]\n2. 2-fold cross-validation (also known as simple cross-validation) [Source: machine-learning-cheat-sheet.pdf, Page 1]",
+      "context": "[Source: machine-learning-cheat-sheet.pdf, Page 1]\nkernel-based classiﬁers, which work as well or better than\nSVMs, using techniques such as the L1VM or RVM, dis-\ncussed in Section 14.3.2. However, we include a discus-\nsion of SVMs, despite their non-probabilistic nature, for\ntwo main reasons.\n• First, they are very popular and widely used, so all stu-\ndents of machine learning should know about them.\n• Second, they have some computational advantages\nover probabilistic methods in the structured output\ncase; see Section 19.7 TODO.\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\n(Marlin 2008) for some heuristic approaches).\n• Can handle unlabeled training data? There is much\ninterest in semi-supervised learning, which uses unla-\nbeled data to help solve a supervised task. This is fairly\neasy to do using generative models (see e.g., (Lasserre\net al. 2006; Liang et al. 2007)), but is much harder to\ndo with discriminative models.\n• Symmetric in inputs and outputs? We can run a gen-\nerative model backwards, and infer probable inputs\n\n[Source: machine-learning-cheat-sheet.pdf, Page 1]\ning how the results of a statistical analysis will generalize\nto an independent data set 3.\nCommon types of cross-validation:\n1. K-fold cross-validation. In k-fold cross-validation, the\noriginal sample is randomly partitioned into k equal\nsize subsamples. Of the k subsamples, a single sub-\nsample is retained as the validation data for testing the\nmodel, and the remaining k 1 subsamples are used as\ntraining data.\n2. 2-fold cross-validation. Also, called simple cross-",
       "retrieved_chunks": [
         {
           "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
           "filename": "machine-learning-cheat-sheet.pdf",
           "page": "1",
-          "chunk_index": 3,
-          "section": "A.5.2 BFGS",
-          "content_preview": "Contents\nContents . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . v\nNotation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ix\n1 Introduction . . . ...."
-        },
-        {
-          "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
-          "filename": "machine-learning-cheat-sheet.pdf",
-          "page": "1",
-          "chunk_index": 474,
+          "chunk_index": 467,
           "section": "A.5.2 BFGS",
           "content_preview": "kernel-based classiﬁers, which work as well or better than\nSVMs, using techniques such as the L1VM or RVM, dis-\ncussed in Section 14.3.2. However, we include a discus-\nsion of SVMs, despite their non-..."
         },
@@ -70,9 +54,17 @@
           "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
           "filename": "machine-learning-cheat-sheet.pdf",
           "page": "1",
+          "chunk_index": 287,
+          "section": "A.5.2 BFGS",
+          "content_preview": "(Marlin 2008) for some heuristic approaches).\n• Can handle unlabeled training data? There is much\ninterest in semi-supervised learning, which uses unla-\nbeled data to help solve a supervised task. Thi..."
+        },
+        {
+          "document_id": "7488d639-ab79-4eb3-b809-06ab42e157b8",
+          "filename": "machine-learning-cheat-sheet.pdf",
+          "page": "1",
           "chunk_index": 65,
           "section": "A.5.2 BFGS",
-          "content_preview": "is tantamount to choosing the hypothesis space that it can\npossibly learn.\n1.2.2 Evaluation\nIn the hypothesis space, an evaluation function (also\ncalled objective function or risk function) is needed ..."
+          "content_preview": "ing how the results of a statistical analysis will generalize\nto an independent data set 3.\nCommon types of cross-validation:\n1. K-fold cross-validation. In k-fold cross-validation, the\noriginal sampl..."
         }
       ],
       "num_chunks_retrieved": 3,
@@ -84,7 +76,7 @@
     },
     {
       "question": "What is the capital of Australia?",
-      "answer": "I couldn't find any information about a specific document related to your question, but based on general knowledge: The capital of Australia is Canberra. It has been the country's capital since 1908 and is located in the Australian Capital Territory (ACT).",
+      "answer": "I couldn't find any information about a specific document related to your query, but based on general knowledge: The capital of Australia is Canberra. It has been the country's capital since 1908 and is located in the Australian Capital Territory (ACT).",
       "context": "",
       "retrieved_chunks": [],
       "num_chunks_retrieved": 0,

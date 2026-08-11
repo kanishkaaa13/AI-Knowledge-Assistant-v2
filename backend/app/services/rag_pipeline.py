@@ -110,14 +110,14 @@ def check_keyword_patterns(content: str) -> bool:
     """Check if content matches boilerplate keyword patterns."""
     patterns = [
         r"table of contents",
-        r"^contents\s*$",
+        r"contents\s*\.\s*",  # "Contents . . ." pattern from TOC
         r"copyright\s*©",
         r"all rights reserved",
         r"isbn\s*\d",
-        r"^preface\s*$",
-        r"^foreword\s*$",
-        r"^acknowledgments\s*$",
-        r"page\s+[ivx]+",
+        r"preface",  # More flexible - not standalone
+        r"foreword",
+        r"acknowledgments",
+        r"page\s+[ivx]+\s*\.",  # Roman numeral pages with period
     ]
     content_lower = content.lower()
     for pattern in patterns:
