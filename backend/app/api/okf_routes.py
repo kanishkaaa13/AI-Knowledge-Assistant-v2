@@ -7,7 +7,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.sanitize import ensure_present, sanitize_text
+from app.models.user import User
 from app.services.document_processor import DocumentProcessor
 from app.services.okf_converter import OKFConverterService
 from app.services.okf_retriever import OKFRetrieverService
@@ -19,13 +22,14 @@ router = APIRouter()
 
 
 class OKFChatRequest(BaseModel):
-    bundle_id: str
+    bundle_id: uuid.UUID
     query: str
 
 
 @router.post("/documents/upload-okf", status_code=status.HTTP_201_CREATED)
 async def upload_document_okf(
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """
     Experimental OKF Upload:
@@ -37,7 +41,19 @@ async def upload_document_okf(
     
     file_bytes = await file.read()
     file_extension = os.path.splitext(file.filename)[1].lower() if file.filename else ".txt"
-    
+
+    if file_extension not in settings.ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type. Allowed: {', '.join(settings.ALLOWED_UPLOAD_EXTENSIONS)}.",
+        )
+
+    if len(file_bytes) > settings.MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File exceeds the maximum allowed upload size.",
+        )
+
     # Reuse existing text extraction pipeline
     processor = DocumentProcessor()
     try:
@@ -82,16 +98,19 @@ async def upload_document_okf(
 
 @router.post("/chat/okf-stream")
 async def chat_okf_stream(
-    payload: OKFChatRequest
+    payload: OKFChatRequest,
+    current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """
     Experimental OKF Retrieval & Generation Stream:
     Takes a bundle_id and user query, retrieves matching concepts,
     and streams back a contextual answer from the default LLM.
     """
+    query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+
     backend_dir = Path(__file__).resolve().parent.parent.parent
-    bundle_dir = backend_dir / "okf_bundles" / payload.bundle_id
-    
+    bundle_dir = backend_dir / "okf_bundles" / str(payload.bundle_id)
+
     if not bundle_dir.exists() or not bundle_dir.is_dir():
         logger.warning("OKF bundle_id not found: %s", payload.bundle_id)
         raise HTTPException(
@@ -102,7 +121,7 @@ async def chat_okf_stream(
     # Retrieve relevant concept files and link-following connections
     retriever = OKFRetrieverService()
     try:
-        concepts = await retriever.retrieve_concepts(str(bundle_dir), payload.query)
+        concepts = await retriever.retrieve_concepts(str(bundle_dir), query)
     except Exception as exc:
         logger.error("OKF concept retrieval failed: %s", exc)
         raise HTTPException(
@@ -127,7 +146,7 @@ async def chat_okf_stream(
         "If the answer cannot be found in the provided context, state that the context has insufficient information.\n\n"
         "OKF CONCEPTS CONTEXT:\n"
         f"{context_str}"
-        f"USER QUERY: {payload.query}\n\n"
+        f"USER QUERY: {query}\n\n"
         "CONCISE DETAILED RESPONSE:"
     )
     

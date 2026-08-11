@@ -1,6 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.deps import get_current_user
 from app.core.config import settings
+from app.models.user import User
 
 router = APIRouter()
 
@@ -28,11 +30,17 @@ async def ollama_health_check() -> dict[str, str]:
         return {"status": "error", "message": str(exc)}
 
 
-@router.get("/debug/chroma")
-async def debug_chroma() -> dict:
+@router.get("/debug/chroma", include_in_schema=False)
+async def debug_chroma(current_user: User = Depends(get_current_user)) -> dict:
     """
     Diagnostic endpoint: shows how many vectors are stored per user collection.
+
+    Requires authentication and is unavailable outside development because it
+    exposes vector-store internals and chunk metadata for every user.
     """
+    if settings.APP_ENV.lower() == "production":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
     import os
     from pathlib import Path
     from app.services.vector_store import get_vector_store_service
