@@ -13,6 +13,7 @@ from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.crypto import encryption_service
 from app.models.document_chunk import DocumentChunk
 from app.models.uploaded_document import UploadedDocument
 
@@ -116,7 +117,7 @@ class DocumentProcessor:
 
     def save_file(self, file_bytes: bytes, user_id: uuid.UUID, file_name: str) -> tuple[str, str]:
         """
-        Save file to user-isolated storage directory.
+        Save file to user-isolated storage directory with encryption.
 
         Args:
             file_bytes: Raw file content
@@ -135,7 +136,9 @@ class DocumentProcessor:
         stored_name = f"{checksum[:16]}-{safe_name}"
         file_path = user_dir / stored_name
 
-        file_path.write_bytes(file_bytes)
+        # Encrypt bytes before writing to disk
+        encrypted_bytes = encryption_service.encrypt_bytes(file_bytes)
+        file_path.write_bytes(encrypted_bytes)
         return str(file_path.resolve()), checksum
 
     def create_document_record(

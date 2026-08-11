@@ -243,9 +243,19 @@ class RAGIngestionService:
             )
             pages = []
 
-        # Fallback to single page using extracted text if parsing returns empty list
         if not pages:
-            pages = [ParsedDocumentPage(page_number=1, text=document.extracted_text or "")]
+            if not document.extracted_text:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Document parsing returned no pages. The file may be corrupted or in an unsupported format."
+                )
+            # Structure is unavailable, but the stored text is still indexable.
+            logger.warning(
+                "Parsing produced no pages for document %s — indexing the stored "
+                "extracted text without page/paragraph structure.",
+                document.id,
+            )
+            pages = [ParsedDocumentPage(page_number=1, text=document.extracted_text)]
 
         # Detect sections from full document text
         full_text = document.extracted_text or ""
