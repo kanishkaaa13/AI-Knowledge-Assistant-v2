@@ -124,8 +124,9 @@ async def llm_match(query: str, concepts: list[dict]) -> list[str]:
         filenames = json.loads(cleaned)
         if isinstance(filenames, list):
             return [str(f).strip() for f in filenames]
-    except Exception as exc:
-        logger.error("LLM fallback matching failed: %s", exc)
+    except Exception:
+        # Non-fatal: callers fall back to keyword matching when nothing is returned.
+        logger.warning("LLM fallback concept matching failed.", exc_info=True)
         
     return []
 

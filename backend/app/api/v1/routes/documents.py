@@ -1,3 +1,4 @@
+import logging
 import uuid
 from io import BytesIO
 from pathlib import Path
@@ -31,6 +32,8 @@ from app.services.document_upload import (
     read_encrypted_document_bytes,
 )
 from app.services.rag_pipeline import RAGIngestionService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -103,9 +106,12 @@ async def upload_document(
     
     try:
         from app.core.config import settings
-        print(f"[UPLOAD] Received file: {file.filename}, size: {file.size}")
-        print(f"[UPLOAD] User: {current_user.id}")
-        print(f"[UPLOAD] Storage path: {settings.UPLOAD_ROOT_DIR}")
+        logger.info(
+            "Upload received: file=%r size=%s user=%s",
+            file.filename,
+            file.size,
+            current_user.id,
+        )
 
         processor = DocumentProcessor(chunk_size=500, chunk_overlap=50)
         file_bytes = await file.read()
@@ -128,10 +134,8 @@ async def upload_document(
 
         # OKF extraction pipeline
         try:
-            import os
             import re
             from pathlib import Path
-            import logging
             from app.services.okf_extractor import extract_okf_concepts
             from app.okf.parser import serialize_okf
             from app.models.okf_record import OKFRecord
@@ -174,28 +178,39 @@ async def upload_document(
                 db.add(okf_record)
             
             db.commit()
-            print(f"[OKF EXTRACTION] Successfully processed {len(okf_docs)} concepts.")
-        except Exception as e:
-            # Let upload continue normally if OKF extraction fails
-            logging.getLogger(__name__).exception("OKF extraction failed during upload flow.")
-            print(f"[OKF EXTRACTION ERROR] {e}")
+            logger.info("OKF extraction processed %d concepts.", len(okf_docs))
+        except Exception:
+            # OKF concepts are supplementary — the upload itself still succeeds.
+            db.rollback()
+            logger.exception("OKF extraction failed during upload flow.")
 
         try:
             RAGIngestionService(db).index_document(document)
             # Invalidate BM25 index after successful indexing
             get_bm25_service().invalidate_user(current_user.id)
-        except Exception as e:
-            print(f"[INDEX ERROR] {e}")
-            document.status = "pending"
+        except Exception as exc:
+            # The file is stored, so keep the upload successful but report the
+            # indexing failure on the document so clients can retry a reindex.
+            logger.exception("Indexing failed for document %s.", document.id)
+            db.rollback()
+            document.status = "failed"
+            document.processing_error = f"Indexing failed: {exc}"
             db.add(document)
             db.commit()
             db.refresh(document)
 
         return UploadedDocumentRead.model_validate(document)
-    except Exception as e:
-        import traceback
-        print(f"[UPLOAD ERROR] {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        logger.exception("Rejected upload of %r.", file.filename)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Upload of %r failed.", file.filename)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload failed: {exc}",
+        ) from exc
 
 
 @router.get("/{document_id}", response_model=UploadedDocumentRead)
@@ -290,20 +305,25 @@ async def reindex_document(
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    print(f"[REINDEX] Starting reindex for doc {document.id} ({document.file_name!r})")
-    print(f"[REINDEX] Extracted text length: {len(document.extracted_text or '')} chars")
-    print(f"[REINDEX] User: {current_user.id}")
+    logger.info(
+        "Reindexing document %s (%r, %d chars) for user %s.",
+        document.id,
+        document.file_name,
+        len(document.extracted_text or ""),
+        current_user.id,
+    )
 
     try:
         chunks = RAGIngestionService(db).index_document(document)
         # Invalidate BM25 index after successful reindexing
         get_bm25_service().invalidate_user(current_user.id)
-        print(f"[REINDEX] Storing {len(chunks)} chunks for doc {document_id}")
-        print(f"[REINDEX] Complete [OK]")
-    except Exception as e:
-        import traceback
-        print(f"[REINDEX ERROR] {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Reindex failed: {e}")
+        logger.info("Reindex stored %d chunks for document %s.", len(chunks), document_id)
+    except Exception as exc:
+        logger.exception("Reindex failed for document %s.", document_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Reindex failed: {exc}",
+        ) from exc
 
     db.refresh(document)
     return UploadedDocumentRead.model_validate(document)

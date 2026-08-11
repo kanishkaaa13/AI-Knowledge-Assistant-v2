@@ -36,17 +36,33 @@ from app import models  # noqa: F401
 from app.core.config import settings
 from app.core.middleware import CORSFallbackMiddleware, JWTContextMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from app.core import security
+from app.services.vector_store import VectorStoreError
+
+
+def _cors_headers(request: Request) -> dict[str, str]:
+    origin = request.headers.get("origin", "")
+    if not is_origin_allowed(origin):
+        return {}
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+    }
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(VectorStoreError)
+    async def vector_store_exception_handler(request: Request, exc: VectorStoreError):
+        logging.error("Vector store unavailable: %s", exc, exc_info=True)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Document search is temporarily unavailable. Please try again."},
+            headers=_cors_headers(request),
+        )
+
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         logging.error(f"Unhandled exception: {exc}", exc_info=True)
-        origin = request.headers.get("origin", "")
-        headers = {}
-        if is_origin_allowed(origin):
-            headers["Access-Control-Allow-Origin"] = origin
-            headers["Access-Control-Allow-Credentials"] = "true"
+        headers = _cors_headers(request)
 
         if settings.APP_ENV.lower() == "production":
             return JSONResponse(
@@ -90,8 +106,12 @@ def create_application() -> FastAPI:
             vs = get_vector_store_service()
             await asyncio.to_thread(vs._get_embedding_model_sync)
             print(f"[STARTUP] Embedding model ready in {time.time() - t0:.2f}s")
-        except Exception as exc:
-            print(f"[STARTUP] Warning: could not pre-warm embedding model: {exc}")
+        except Exception:
+            # Non-fatal: the model is loaded lazily on first search instead.
+            logging.warning(
+                "Could not pre-warm the embedding model; it will load on first use.",
+                exc_info=True,
+            )
 
         print(f"[STARTUP] LLM provider: {settings.LLM_PROVIDER} | model: {settings.DEFAULT_CHAT_MODEL}")
         

@@ -1,8 +1,12 @@
+import json
+import logging
 import uuid
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.schemas.common import ORMBaseSchema, TimestampSchema
+
+logger = logging.getLogger(__name__)
 
 
 class MessageBase(ORMBaseSchema):
@@ -19,9 +23,6 @@ class MessageUpdate(ORMBaseSchema):
     content: str | None = Field(default=None, min_length=1)
 
 
-import json
-from pydantic import field_validator
-
 class MessageRead(MessageBase, TimestampSchema):
     conversation_id: uuid.UUID
     citations: list[dict] | None = None
@@ -32,6 +33,9 @@ class MessageRead(MessageBase, TimestampSchema):
         if isinstance(v, str):
             try:
                 return json.loads(v)
-            except Exception:
+            except json.JSONDecodeError:
+                # Persisted citations are corrupt: keep the message readable but
+                # make the data problem visible in the logs.
+                logger.error("Discarding unparsable stored citations: %r", v)
                 return []
         return v

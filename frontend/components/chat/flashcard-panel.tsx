@@ -96,6 +96,16 @@ export function FlashcardPanel({ selectedDocumentIds }: FlashcardPanelProps) {
     }
   };
 
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      await deleteFlashcard(cardId);
+      setCurrentIndex(0);
+    } catch (e) {
+      // useFlashcards already toasts the failure; keep the current card visible.
+      console.error(e);
+    }
+  };
+
   const updateCardDifficulty = async (difficulty: "easy" | "medium" | "hard") => {
     if (!activeCard) return;
     try {
@@ -348,7 +358,7 @@ export function FlashcardPanel({ selectedDocumentIds }: FlashcardPanelProps) {
               <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-400 rounded-lg hover:bg-amber-500/10" title="Reset Deck" onClick={handleReset}>
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground rounded-lg hover:bg-destructive/10 hover:text-destructive" title="Delete Card" onClick={() => deleteFlashcard(activeCard.id).then(() => setCurrentIndex(0))}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground rounded-lg hover:bg-destructive/10 hover:text-destructive" title="Delete Card" onClick={() => void handleDeleteCard(activeCard.id)}>
                 <Layers className="h-3.5 w-3.5" />
               </Button>
               

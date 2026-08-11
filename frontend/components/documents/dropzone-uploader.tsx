@@ -13,6 +13,7 @@ type QueueItem = {
   file: File;
   progress: number;
   status: "queued" | "uploading" | "indexing" | "Ready" | "error";
+  error?: string;
 };
 
 function createQueueItem(file: File): QueueItem {
@@ -64,10 +65,21 @@ export function DropzoneUploader() {
               entry.id === item.id ? { ...entry, status: "Ready", progress: 100 } : entry
             )
           );
-        } catch {
+        } catch (error: any) {
+          // The mutation toasts the failure; keep the reason on the queue entry too.
+          const detail =
+            error?.response?.data?.detail ??
+            (error instanceof Error ? error.message : null) ??
+            "Upload failed.";
           setQueue((current) =>
             current.map((entry) =>
-              entry.id === item.id ? { ...entry, status: "error" } : entry
+              entry.id === item.id
+                ? {
+                    ...entry,
+                    status: "error",
+                    error: typeof detail === "string" ? detail : JSON.stringify(detail)
+                  }
+                : entry
             )
           );
         }
@@ -139,6 +151,9 @@ export function DropzoneUploader() {
                     {item.status === "indexing" && <Loader2 className="h-3 w-3 animate-spin" />}
                     {item.status === "indexing" ? "Indexing..." : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                   </p>
+                  {item.status === "error" && item.error ? (
+                    <p className="mt-0.5 text-xs text-destructive break-words">{item.error}</p>
+                  ) : null}
                 </div>
                 <button
                   className="rounded-full p-1 text-muted-foreground transition hover:bg-secondary"

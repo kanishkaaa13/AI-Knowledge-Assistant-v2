@@ -226,7 +226,10 @@ class OllamaLLMService:
                             token = chunk["choices"][0]["delta"].get("content", "")
                             if token:
                                 yield token
-                        except Exception:
+                        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+                            logger.warning(
+                                "Skipping unreadable Groq stream chunk (%s): %r", exc, data_str
+                            )
                             continue
 
     # ==================================================================

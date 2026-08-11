@@ -18,6 +18,18 @@ from app.services.bm25_index import get_bm25_service
 logger = logging.getLogger(__name__)
 
 
+class VectorStoreError(RuntimeError):
+    """Raised when the vector store is unusable for the requested operation."""
+
+
+def _is_missing_collection_error(exc: Exception) -> bool:
+    """ChromaDB signals an unknown collection with a NotFoundError or a ValueError,
+    depending on the client version."""
+    if type(exc).__name__ in {"NotFoundError", "InvalidCollectionException"}:
+        return True
+    return isinstance(exc, ValueError) and "does not exist" in str(exc).lower()
+
+
 @dataclass
 class VectorRecord:
     id: str
@@ -155,11 +167,9 @@ class VectorStoreService:
                 documents=documents,
                 metadatas=metadatas,
             )
-        except Exception as e:
-            print(f"[INDEX DEBUG] CHROMA UPSERT FAILED: {e}")
-            import traceback
-            print(traceback.format_exc())
-            raise
+        except Exception as exc:
+            logger.exception("ChromaDB upsert of %d vectors failed for user %s.", len(ids), user_id)
+            raise VectorStoreError(f"Failed to index document chunks: {exc}") from exc
 
         count_after = collection.count()
         print(f"[INDEX] Upsert complete. Collection now has {count_after} total vectors.")
@@ -205,11 +215,16 @@ class VectorStoreService:
         collection.delete(where={"document_id": {"$in": document_ids}})
 
     def delete_collection(self, user_id: uuid.UUID) -> None:
-        """Delete the entire user collection."""
+        """Delete the entire user collection. A missing collection is not an error."""
+        name = self._collection_name(user_id)
         try:
-            self.client.delete_collection(name=self._collection_name(user_id))
-        except Exception:
-            pass
+            self.client.delete_collection(name=name)
+        except Exception as exc:
+            if _is_missing_collection_error(exc):
+                logger.info("Collection %s does not exist — nothing to delete.", name)
+                return
+            logger.exception("Failed to delete collection %s.", name)
+            raise VectorStoreError(f"Failed to delete collection {name}: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Read operations (async — called from API route handlers)
@@ -274,21 +289,21 @@ class VectorStoreService:
                     where=where_clause,
                     include=["documents", "metadatas", "distances"],
                 )
-            except Exception as e:
-                print(f"[RAG] ChromaDB query FAILED: {e}")
-                # If filter caused error, try without filter as fallback
+            except Exception as exc:
+                logger.warning("ChromaDB query with filter %s failed: %s", where_clause, exc)
+                # The filter may be malformed — retry with the user filter only
                 try:
-                    print(f"[RAG] Retrying without document_id filter...")
                     results = collection.query(
                         query_texts=[query],
                         n_results=n_results,
                         where={"user_id": str(user_id)},
                         include=["documents", "metadatas", "distances"],
                     )
-                    print(f"[RAG] Fallback query returned {len(results.get('ids', [[]])[0])} results")
-                except Exception as e2:
-                    print(f"[RAG] Fallback query also FAILED: {e2}")
-                    return []
+                except Exception as fallback_exc:
+                    logger.exception("ChromaDB fallback query failed for user %s.", user_id)
+                    raise VectorStoreError(
+                        f"Document search failed: {fallback_exc}"
+                    ) from fallback_exc
 
             ids_list = results.get("ids", [[]])[0]
             docs_list = results.get("documents", [[]])[0]
@@ -366,12 +381,11 @@ class VectorStoreService:
         try:
             await self._get_embedding_model_async()
             return await asyncio.to_thread(_search_sync)
-        except Exception as e:
-            logger.error("Similarity search failed: %s", e)
-            print(f"[RAG] CRITICAL ERROR IN SIMILARITY SEARCH: {e}")
-            import traceback
-            print(traceback.format_exc())
-            return []
+        except VectorStoreError:
+            raise
+        except Exception as exc:
+            logger.exception("Similarity search failed for user %s.", user_id)
+            raise VectorStoreError(f"Document search failed: {exc}") from exc
 
     # Performs a hybrid semantic + keyword search with Reciprocal Rank Fusion (RRF)
     async def hybrid_similarity_search(

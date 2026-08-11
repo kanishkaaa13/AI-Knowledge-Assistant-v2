@@ -79,6 +79,7 @@ export function NotesShell() {
         setActiveNoteId(newNote.id);
       }
     } catch (e) {
+      // useNotes already toasts the failure; keep the note unselected.
       console.error(e);
     }
   };
@@ -91,6 +92,7 @@ export function NotesShell() {
         setActiveNoteId(null);
       }
     } catch (e) {
+      // useNotes already toasts the failure; keep the current selection.
       console.error(e);
     }
   };
@@ -100,6 +102,7 @@ export function NotesShell() {
     try {
       await togglePinNote(id);
     } catch (e) {
+      // useNotes already toasts the failure.
       console.error(e);
     }
   };

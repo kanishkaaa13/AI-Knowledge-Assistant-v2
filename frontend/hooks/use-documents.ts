@@ -90,6 +90,9 @@ export function useUpdateDocumentMetadata() {
       updateDocumentMetadata(documentId, { tags, is_favorite }),
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
+    },
+    onError(error: any) {
+      toast.error(error?.response?.data?.detail ?? "Unable to update the document.");
     }
   });
 }
@@ -102,6 +105,9 @@ export function useReindexDocument() {
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success("Re-indexing started.");
+    },
+    onError(error: any) {
+      toast.error(error?.response?.data?.detail ?? "Re-indexing failed.");
     }
   });
 }
