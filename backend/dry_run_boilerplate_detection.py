@@ -12,17 +12,17 @@ from app.models.document_chunk import DocumentChunk
 user_id = uuid.UUID("2f9c2a2c-2dac-4596-b117-6b2cffe01425")
 
 def check_keyword_patterns(content: str) -> bool:
-    """Check if content matches boilerplate keyword patterns (revised)."""
+    """Check if content matches boilerplate keyword patterns (current live version)."""
     patterns = [
-        r"table of contents",  # Exact phrase
-        r"^contents\s*$",  # Standalone "Contents"
-        r"copyright\s*©",  # Copyright with symbol
+        r"table of contents",
+        r"contents\s*\.\s*",  # "Contents . . ." pattern from TOC
+        r"copyright\s*©",
         r"all rights reserved",
-        r"isbn\s*\d",  # ISBN followed by numbers
-        r"^preface\s*$",  # Standalone "Preface"
-        r"^foreword\s*$",  # Standalone "Foreword"
-        r"^acknowledgments\s*$",  # Standalone "Acknowledgments"
-        r"page\s+[ivx]+",  # Roman numeral pages only
+        r"isbn\s*\d",
+        r"preface",  # More flexible - not standalone
+        r"foreword",
+        r"acknowledgments",
+        r"page\s+[ivx]+\s*\.",  # Roman numeral pages with period
     ]
     content_lower = content.lower()
     for pattern in patterns:
