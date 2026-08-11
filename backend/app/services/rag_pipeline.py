@@ -156,6 +156,33 @@ def check_position_with_content(chunk_index: int, total_chunks: int) -> bool:
     return False
 
 
+def is_heading_pattern(content: str) -> bool:
+    """Check if content matches heading/title patterns (should not be flagged as boilerplate)."""
+    lines = content.strip().split('\n')
+    first_line = lines[0].strip() if lines else ""
+    
+    # Markdown headers (# ## ###)
+    if re.match(r'^#+\s+\S', first_line):
+        return True
+    
+    # Numbered section headers (1.1, 2.3.4, etc.)
+    if re.match(r'^\d+(\.\d+)*\s+[A-Z]', first_line):
+        return True
+    
+    # Short lines that look like titles (all caps or title case, < 10 words)
+    words = first_line.split()
+    if len(words) <= 10 and len(words) >= 2:
+        # All caps
+        if first_line.isupper():
+            return True
+        # Title case (most words capitalized)
+        capitalized_words = sum(1 for w in words if w[0].isupper())
+        if capitalized_words / len(words) >= 0.7:
+            return True
+    
+    return False
+
+
 def is_boilerplate_chunk(content: str, chunk_index: int, total_chunks: int) -> bool:
     """Determine if a chunk is boilerplate using revised detection logic."""
     # Specific boilerplate keyword - always flag
@@ -164,6 +191,9 @@ def is_boilerplate_chunk(content: str, chunk_index: int, total_chunks: int) -> b
     
     # Position only - need very low density to flag
     if check_position_with_content(chunk_index, total_chunks):
+        # Skip density-based flagging for headings/titles
+        if is_heading_pattern(content):
+            return False
         if check_content_density(content):
             return True
     

@@ -60,6 +60,33 @@ def check_position_with_content(content: str, chunk_index: int, total_chunks: in
         return True
     return False
 
+
+def is_heading_pattern(content: str) -> bool:
+    """Check if content matches heading/title patterns (should not be flagged as boilerplate)."""
+    lines = content.strip().split('\n')
+    first_line = lines[0].strip() if lines else ""
+    
+    # Markdown headers (# ## ###)
+    if re.match(r'^#+\s+\S', first_line):
+        return True
+    
+    # Numbered section headers (1.1, 2.3.4, etc.)
+    if re.match(r'^\d+(\.\d+)*\s+[A-Z]', first_line):
+        return True
+    
+    # Short lines that look like titles (all caps or title case, < 10 words)
+    words = first_line.split()
+    if len(words) <= 10 and len(words) >= 2:
+        # All caps
+        if first_line.isupper():
+            return True
+        # Title case (most words capitalized)
+        capitalized_words = sum(1 for w in words if w[0].isupper())
+        if capitalized_words / len(words) >= 0.7:
+            return True
+    
+    return False
+
 print("=" * 80)
 print("BOILERPLATE DETECTION DRY RUN")
 print("=" * 80)
@@ -96,7 +123,7 @@ with next(get_db()) as db:
             # Mark as boilerplate if ANY of these trigger (revised logic):
             # 1. Specific boilerplate keyword match (copyright, TOC, etc.)
             # 2. Position (first 2 chunks) + specific boilerplate keyword
-            # 3. Very low density (< 10 unique words/100 chars) + position (first/last 2 chunks)
+            # 3. Very low density (< 10 unique words/100 chars) + position (first/last 2 chunks) - but NOT for headings
             is_boilerplate = False
             
             if check_keyword_patterns(chunk.content):
@@ -104,7 +131,10 @@ with next(get_db()) as db:
                 is_boilerplate = True
             elif check_position_with_content(chunk.content, chunk.chunk_index, len(chunks)):
                 # Position only - need very low density to flag
-                if check_content_density(chunk.content):
+                # Skip density-based flagging for headings/titles
+                if is_heading_pattern(chunk.content):
+                    is_boilerplate = False
+                elif check_content_density(chunk.content):
                     is_boilerplate = True
             
             if is_boilerplate:
