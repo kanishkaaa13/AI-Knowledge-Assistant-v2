@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import Depends, HTTPException, Request, status
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 
 def get_current_user(
@@ -57,9 +60,10 @@ def get_current_user(
     except HTTPException:
         # Re-raise HTTP exceptions directly
         raise
-    except Exception:
-        # Catch any other parsing/DB errors and return 401 instead of crashing
+    except ValueError as exc:
+        # Malformed token subject (not a UUID) is a client-side auth problem.
+        logger.warning("Rejected authentication with malformed subject: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+            detail="Invalid authentication token.",
+        ) from exc

@@ -106,14 +106,12 @@ class FlashcardService:
             raw_response = raw_response.strip()
 
             cards_data = json.loads(raw_response)
-        except Exception as e:
+        except Exception as exc:
             logger.exception("Failed to generate or parse flashcards from local model")
-            # Create a simple fallback flashcard rather than complete failure
-            cards_data = [{
-                "front": "What is the primary topic of the selected documents?",
-                "back": f"Based on retrieval, this document talks about: {search_results[0].document[:200]}...",
-                "difficulty": "medium"
-            }]
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"The AI service failed to generate flashcards: {exc}",
+            ) from exc
 
         created_cards = []
         doc_uuid = uuid.UUID(cleaned_doc_ids[0]) if cleaned_doc_ids else None

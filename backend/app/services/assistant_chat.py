@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import traceback
 import uuid
 from collections.abc import AsyncIterator
 
@@ -46,7 +45,8 @@ class AssistantChatService:
             context = ""
             prompt = query
         else:
-            # Retrieve context from ChromaDB
+            # Retrieve context from ChromaDB — a retrieval failure must not be
+            # presented to the user as "no matching documents".
             try:
                 search_results = await self.vector_store.hybrid_similarity_search(
                     user_id=user.id,
@@ -54,9 +54,12 @@ class AssistantChatService:
                     top_k=top_k,
                     document_ids=document_ids,
                 )
-            except Exception:
-                logger.exception("ChromaDB retrieval failed — falling back to empty context.")
-                search_results = []
+            except Exception as exc:
+                logger.exception("Document retrieval failed for user %s.", user.id)
+                raise HTTPException(
+                    status_code=503,
+                    detail="Document search is temporarily unavailable. Please try again.",
+                ) from exc
 
             chunks = _format_chunks(search_results)
 
@@ -84,11 +87,14 @@ class AssistantChatService:
             answer = await self.ollama_service.generate(prompt=prompt, model=model, temperature=0.2)
             if not answer.strip():
                 answer = "I was unable to generate a response. Please try again."
-        except HTTPException as exc:
-            raise exc
-        except Exception:
+        except HTTPException:
+            raise
+        except Exception as exc:
             logger.exception("LLM generation failed.")
-            answer = "The AI service encountered an error. Please check your API key configuration and try again."
+            raise HTTPException(
+                status_code=502,
+                detail=f"The AI service failed to generate a response: {exc}",
+            ) from exc
 
         return {
             "query": query,
@@ -133,9 +139,9 @@ class AssistantChatService:
                 async for token in self.ollama_service.stream_generate(prompt=prompt, model=model, temperature=0.2):
                     full_answer += token
                     yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
-            except Exception as e:
-                print(f"[STREAM ERROR] Direct chat failed: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            except Exception as exc:
+                logger.exception("Direct chat streaming failed.")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
                 return
 
             final = full_answer.strip() or "I was unable to generate a response. Please try again."
@@ -158,11 +164,13 @@ class AssistantChatService:
                 document_ids=document_ids,
             )
             print(f"[RAG 5] Number of chunks retrieved: {len(search_results)}")
-        except Exception as e:
-            print(f"[STREAM] ChromaDB retrieval failed: {e}")
-            import traceback
-            print(traceback.format_exc())
-            search_results = []
+        except Exception as exc:
+            # Reporting this as "no relevant documents found" would hide a broken
+            # retrieval pipeline, so surface it to the client instead.
+            logger.exception("Document retrieval failed for user %s.", user_id)
+            message = f"Document search failed: {exc}"
+            yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
+            return
 
         # Check if results are empty OR all below similarity threshold
         SIMILARITY_THRESHOLD = 0.3
@@ -251,13 +259,12 @@ class AssistantChatService:
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError):
             msg = "LLM connection lost. Check your API key and network configuration."
-            print(f"[STREAM ERROR] {msg}")
+            logger.exception(msg)
             yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
             return
-        except Exception as e:
-            import traceback
-            print(f"[STREAM ERROR] {traceback.format_exc()}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        except Exception as exc:
+            logger.exception("Answer streaming failed.")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
             return
 
         final = full_answer.strip() or "I was unable to generate a response. Please try again."
@@ -296,9 +303,9 @@ class AssistantChatService:
                 reasoning = verification_result.split("\n")[0].strip() if verification_result else ""
                 
                 yield f"data: {json.dumps({'type': 'verification', 'verified': verified, 'reasoning': reasoning, 'latency_ms': int(verify_time * 1000)})}\n\n"
-            except Exception as e:
-                print(f"[VERIFICATION ERROR] {e}")
-                yield f"data: {json.dumps({'type': 'verification', 'verified': 'ERROR', 'reasoning': str(e), 'latency_ms': 0})}\n\n"
+            except Exception as exc:
+                logger.exception("Answer verification failed.")
+                yield f"data: {json.dumps({'type': 'verification', 'verified': 'ERROR', 'reasoning': str(exc), 'latency_ms': 0})}\n\n"
 
         # Asynchronously generate context-aware follow-up suggestions
         suggestions = []
@@ -312,8 +319,9 @@ class AssistantChatService:
                 if line.strip() and not line.startswith("[") and not line.startswith("data:")
             ]
             suggestions = [s for s in suggestions if s][:5]
-        except Exception as e:
-            print(f"[STREAM] Follow-up generation failed: {e}")
+        except Exception:
+            # Follow-up prompts are cosmetic — fall back to static suggestions.
+            logger.warning("Follow-up suggestion generation failed.", exc_info=True)
             suggestions = [
                 "Explain this with an example",
                 "Summarize the key takeaways",

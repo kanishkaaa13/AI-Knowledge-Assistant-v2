@@ -1,33 +1,13 @@
 "use client";
 
-import * as React from "react";
 import { ChatShell } from "@/components/chat/chat-shell";
 import { useChat } from "@/hooks/use-chat";
 
+// Render errors propagate to the ErrorBoundary in the root layout.
 export default function DashboardPage() {
-  const [hasError, setHasError] = React.useState(false);
+  const chat = useChat();
 
-  React.useEffect(() => {
-    window.onerror = (msg, src, line, col, err) => {
-      console.error("Global error:", msg, err);
-      // Optional: setHasError(true) if you want to show a fallback UI on global errors
-    };
-  }, []);
-
-  let chat;
-  try {
-    chat = useChat();
-  } catch (err) {
-    console.error("Error in useChat:", err);
-    return <div className="p-8 text-red-500">Failed to load chat hook. Check console.</div>;
-  }
-
-  if (hasError) {
-    return <div className="p-8 text-red-500">Something went wrong. Check console.</div>;
-  }
-
-  try {
-    return (
+  return (
     <ChatShell
       activeConversationId={chat.activeConversationId}
       activeConversationTitle={chat.activeConversation?.title}
@@ -66,9 +46,5 @@ export default function DashboardPage() {
       onSidebarOpenChange={chat.setIsSidebarOpen}
       onUseSuggestedPrompt={chat.useSuggestedPrompt}
     />
-    );
-  } catch (err) {
-    console.error("Error rendering ChatShell:", err);
-    return <div className="p-8 text-red-500">Error rendering ChatShell. Check console.</div>;
-  }
+  );
 }

@@ -17,7 +17,11 @@ from app.repositories.chunk import DocumentChunkRepository
 from app.repositories.document import DocumentRepository
 from app.schemas.rag import RetrievedChunk, RetrievalResponse
 from app.services.vector_store import VectorRecord, VectorSearchResult, get_vector_store_service
-from app.services.document_parser import StoredDocumentParser
+from app.services.document_parser import (
+    DocumentParseError,
+    ParsedDocumentPage,
+    StoredDocumentParser,
+)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
@@ -228,11 +232,19 @@ class RAGIngestionService:
 
         # Parse the document page-by-page (decrypts automatically)
         parser = StoredDocumentParser()
-        pages = parser.parse(document)
+        try:
+            pages = parser.parse(document)
+        except DocumentParseError:
+            logger.warning(
+                "Could not parse stored file for document %s — indexing the stored "
+                "extracted text instead, without page/paragraph structure.",
+                document.id,
+                exc_info=True,
+            )
+            pages = []
 
         # Fallback to single page using extracted text if parsing returns empty list
         if not pages:
-            from app.services.document_parser import ParsedDocumentPage
             pages = [ParsedDocumentPage(page_number=1, text=document.extracted_text or "")]
 
         # Detect sections from full document text
@@ -259,8 +271,14 @@ class RAGIngestionService:
             okf_records = self.db.scalars(
                 select(OKFRecord).where(OKFRecord.source_document_id == document.id)
             ).all()
-        except Exception as e:
-            print(f"[INDEX OKF ERROR] Failed to fetch OKF records: {e}")
+        except Exception:
+            # OKF metadata only enriches chunk metadata — indexing can proceed without it.
+            logger.warning(
+                "Failed to fetch OKF records for document %s — chunks will be indexed "
+                "without OKF metadata.",
+                document.id,
+                exc_info=True,
+            )
 
         def find_best_okf_match(chunk_txt: str, okf_recs: list[OKFRecord]) -> OKFRecord | None:
             if not okf_recs:

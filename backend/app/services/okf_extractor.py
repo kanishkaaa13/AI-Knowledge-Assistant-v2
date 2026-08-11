@@ -59,21 +59,23 @@ async def extract_okf_concepts(document_text: str, source_document_id: str) -> l
         raw_response = await ollama.generate(prompt=prompt, model=model)
     except Exception as e:
         logger.exception("LLM generation failed during OKF extraction")
-        raise RuntimeError(f"LLM generation failed: {str(e)}")
+        raise RuntimeError(f"LLM generation failed: {str(e)}") from e
 
     cleaned_json = extract_json_block(raw_response)
     try:
         concepts_data = json.loads(cleaned_json)
     except json.JSONDecodeError as e:
         logger.error(f"Failed to decode JSON from LLM response. Raw response: {raw_response}. Error: {e}")
-        return []
+        raise RuntimeError(f"OKF extraction returned unparsable JSON: {e}") from e
 
     if not isinstance(concepts_data, list):
         if isinstance(concepts_data, dict):
             concepts_data = [concepts_data]
         else:
             logger.error(f"Parsed JSON is not a list or dictionary: {concepts_data}")
-            return []
+            raise RuntimeError(
+                f"OKF extraction returned unexpected JSON type: {type(concepts_data).__name__}"
+            )
 
     okf_documents = []
     now = datetime.now()

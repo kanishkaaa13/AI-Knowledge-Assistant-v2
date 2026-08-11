@@ -22,10 +22,13 @@ export default function KnowledgePage() {
   
   const [loadingList, setLoadingList] = React.useState(true);
   const [loadingDetail, setLoadingDetail] = React.useState(false);
+  const [listError, setListError] = React.useState<string | null>(null);
+  const [detailError, setDetailError] = React.useState<string | null>(null);
 
   // Fetch list of OKF records
   const fetchRecords = React.useCallback(async () => {
     setLoadingList(true);
+    setListError(null);
     try {
       const data = await listOKFRecords({
         page,
@@ -34,8 +37,11 @@ export default function KnowledgePage() {
       });
       setRecords(data.items);
       setTotal(data.total);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load OKF records:", err);
+      setListError(
+        err?.response?.data?.detail ?? "Could not load the knowledge base. Please try again."
+      );
     } finally {
       setLoadingList(false);
     }
@@ -46,24 +52,29 @@ export default function KnowledgePage() {
   }, [fetchRecords]);
 
   // Fetch individual OKF document detail when a record is selected
-  React.useEffect(() => {
+  const fetchDetail = React.useCallback(async () => {
     if (!selectedRecordId) {
       setSelectedDoc(null);
       return;
     }
-    const fetchDetail = async () => {
-      setLoadingDetail(true);
-      try {
-        const doc = await getOKFDocument(selectedRecordId);
-        setSelectedDoc(doc);
-      } catch (err) {
-        console.error("Failed to load OKF document details:", err);
-      } finally {
-        setLoadingDetail(false);
-      }
-    };
-    fetchDetail();
+    setLoadingDetail(true);
+    setDetailError(null);
+    try {
+      const doc = await getOKFDocument(selectedRecordId);
+      setSelectedDoc(doc);
+    } catch (err: any) {
+      console.error("Failed to load OKF document details:", err);
+      setDetailError(
+        err?.response?.data?.detail ?? "Could not load this concept. Please try again."
+      );
+    } finally {
+      setLoadingDetail(false);
+    }
   }, [selectedRecordId]);
+
+  React.useEffect(() => {
+    void fetchDetail();
+  }, [fetchDetail]);
 
   // Helper to color badge based on concept type
   const getTypeBadgeStyles = (type: string) => {
@@ -123,6 +134,13 @@ export default function KnowledgePage() {
               {loadingDetail ? (
                 <div className="flex h-64 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : detailError ? (
+                <div className="rounded-[2rem] border border-destructive/40 bg-destructive/5 p-8 text-center">
+                  <h3 className="text-lg font-medium text-destructive">{detailError}</h3>
+                  <Button className="mt-4 rounded-full" onClick={() => void fetchDetail()}>
+                    Retry
+                  </Button>
                 </div>
               ) : selectedDoc ? (
                 <Card className="rounded-[2rem] border-border/60 bg-card/70 p-6 sm:p-8 shadow-xl backdrop-blur">
@@ -221,6 +239,13 @@ export default function KnowledgePage() {
               {loadingList ? (
                 <div className="flex h-64 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : listError ? (
+                <div className="text-center py-20 rounded-[2rem] border border-destructive/40 bg-destructive/5 backdrop-blur">
+                  <h3 className="text-lg font-medium text-destructive">{listError}</h3>
+                  <Button className="mt-4 rounded-full" onClick={() => void fetchRecords()}>
+                    Retry
+                  </Button>
                 </div>
               ) : records.length === 0 ? (
                 <div className="text-center py-20 rounded-[2rem] border border-border/60 bg-card/20 backdrop-blur">

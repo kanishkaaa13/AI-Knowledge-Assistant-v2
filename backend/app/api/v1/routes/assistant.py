@@ -245,9 +245,7 @@ async def stream_query_assistant(
                 yield f"data: {json.dumps(data)}\n\n"
 
         except Exception as e:
-            import traceback
-            full_tb = traceback.format_exc()
-            print(f"[STREAM CRASH]\n{full_tb}")
+            logger.exception("Assistant stream crashed.")
             error_payload = json.dumps({
                 "type": "error",
                 "message": str(e) or "Stream failed. Check backend logs."
@@ -349,9 +347,7 @@ async def stream_assistant_chat(
                 yield f"data: {json.dumps(data)}\n\n"
 
         except Exception as e:
-            import traceback
-            full_tb = traceback.format_exc()
-            print(f"[STREAM CRASH]\n{full_tb}")
+            logger.exception("Assistant stream crashed.")
             error_payload = json.dumps({
                 "type": "error",
                 "message": str(e) or "Stream failed. Check backend logs."

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
+
+from fastapi import HTTPException
 
 from app.models.user import User
 from app.services.ollama_llm import OllamaLLMService
@@ -10,6 +13,8 @@ from app.services.prompt_builder import (
     build_suggested_prompts_prompt,
 )
 from app.services.vector_store import VectorStoreService
+
+logger = logging.getLogger(__name__)
 
 
 class AssistantFeatureService:
@@ -104,9 +109,12 @@ class AssistantFeatureService:
                     "answer": q.get("answer", ""),
                     "difficulty": q.get("difficulty", "medium")
                 })
-        except json.JSONDecodeError:
-            # If JSON parsing fails, return empty array
-            formatted_questions = []
+        except json.JSONDecodeError as exc:
+            logger.error("Quiz model returned unparsable JSON: %r", raw)
+            raise HTTPException(
+                status_code=502,
+                detail="The AI service returned an unreadable quiz response. Please try again.",
+            ) from exc
         
         return {
             "questions": formatted_questions,
